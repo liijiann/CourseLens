@@ -78,13 +78,10 @@ async def _get_http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
         yield client
 
 
-def _get_api_key(model_key: str, override: str | None = None) -> str:
-    if override:
-        return override
-    api_key = os.getenv('DASHSCOPE_API_KEY', '').strip()
-    if not api_key:
-        raise AIServiceError('未配置 DASHSCOPE_API_KEY')
-    return api_key
+def _get_api_key(model_key: str, override: str | None) -> str:
+    if override and override.strip():
+        return override.strip()
+    raise AIServiceError('未提供 API Key，请通过设置页面配置')
 
 
 def _get_base_url(model_key: str) -> str:
