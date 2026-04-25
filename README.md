@@ -20,9 +20,9 @@
 - DashScope API Key（[申请地址](https://bailian.console.aliyun.com/)）
 
 ## 前提：安装环境
-命令行输入：
-  ```winget install OpenJS.NodeJS```
-  ```winget install Python.Python.3.11```
+命令行分别输入：
+  ```winget install OpenJS.NodeJS ```
+  ``` winget install Python.Python.3.11```
 ## 快速启动
 
 **1. 启动后端**
