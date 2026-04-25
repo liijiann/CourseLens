@@ -1,0 +1,25 @@
+# Python
+backend/.venv/
+backend/storage/**
+!backend/storage/.gitkeep
+**/__pycache__/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Environment
+**/.env
+**/.env.*
+!**/.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.claude/
+.codebuddy/
+
+# Logs
+*.log
