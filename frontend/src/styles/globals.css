@@ -1,0 +1,269 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --dark-bg: #1A1A1B;
+  --dark-surface: #232324;
+  --dark-surface-elev: #2c2c2e;
+  --dark-border: #3A3A3C;
+  --dark-text: #E5E5E7;
+  --dark-muted: #8A8A8E;
+  --dark-button-bg: #232324;
+  --dark-button-hover: #2c2c2e;
+  --dark-disabled: #3A3A3C;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background:
+    radial-gradient(1200px 620px at 84% -18%, rgba(99, 102, 241, 0.14), transparent 55%),
+    radial-gradient(960px 520px at -10% 100%, rgba(14, 165, 233, 0.12), transparent 60%),
+    linear-gradient(140deg, #f8fafc 0%, #eef3ff 56%, #e8eef9 100%);
+  color: #0f172a;
+}
+
+.dark body {
+  background: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bubble-fade-in {
+  animation: bubble-in 220ms ease-out both;
+}
+
+.markdown-body p {
+  margin: 0.25rem 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  color: #0f172a;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0.95rem 0 0.45rem;
+}
+
+.markdown-body h1 {
+  font-size: 1.625rem;
+}
+
+.markdown-body h2 {
+  font-size: 1.25rem;
+}
+
+.markdown-body h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.markdown-body p,
+.markdown-body li {
+  font-size: 0.8875rem;
+  line-height: 2;
+}
+
+.markdown-body.reading-font-small h1 {
+  font-size: 1.45rem;
+}
+
+.markdown-body.reading-font-small h2 {
+  font-size: 1.12rem;
+}
+
+.markdown-body.reading-font-small h3 {
+  font-size: 0.98rem;
+}
+
+.markdown-body.reading-font-small p,
+.markdown-body.reading-font-small li {
+  font-size: 0.8125rem;
+  line-height: 1.85;
+}
+
+.markdown-body.reading-font-small .katex {
+  font-size: 0.92em;
+}
+
+.markdown-body.reading-font-large h1 {
+  font-size: 1.85rem;
+}
+
+.markdown-body.reading-font-large h2 {
+  font-size: 1.42rem;
+}
+
+.markdown-body.reading-font-large h3 {
+  font-size: 1.2rem;
+}
+
+.markdown-body.reading-font-large p,
+.markdown-body.reading-font-large li {
+  font-size: 1.02rem;
+  line-height: 2.05;
+}
+
+.markdown-body.reading-font-large .katex {
+  font-size: 1.08em;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.25rem 0 0.25rem 1.25rem;
+  padding: 0;
+}
+
+.markdown-body li {
+  margin: 0.125rem 0;
+}
+
+.markdown-body code {
+  background: #f1f1f3;
+  border-radius: 4px;
+  color: #1f2937;
+  padding: 0 0.25rem;
+}
+
+.markdown-body pre {
+  background: #f1f1f3;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  padding: 0.5rem;
+}
+
+.markdown-body .katex {
+  background: #f1f1f3;
+  border-radius: 9px;
+  padding: 0.08em 0.42em;
+}
+
+.markdown-body .katex-display {
+  margin: 0.65rem 0;
+  overflow-x: auto;
+}
+
+.markdown-body .katex-display > .katex {
+  display: inline-block;
+  padding: 0.28em 0.9em;
+}
+
+.dark .markdown-body h1,
+.dark .markdown-body h2,
+.dark .markdown-body h3 {
+  color: var(--dark-text);
+}
+
+.dark .markdown-body p,
+.dark .markdown-body li {
+  color: #C7C7C9;
+}
+
+.dark .markdown-body strong {
+  color: var(--dark-text);
+}
+
+.dark .markdown-body code {
+  background: var(--dark-surface-elev);
+  color: var(--dark-text);
+}
+
+.dark .markdown-body pre {
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  color: #d8dee8;
+}
+
+.dark .markdown-body .katex {
+  background: var(--dark-surface-elev);
+}
+
+/* PDF dark eye-care filter */
+.dark .pdf-tone canvas {
+  filter: invert(1) hue-rotate(180deg);
+  background-color: white; 
+}
+
+/* Scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(230, 237, 243, 0.28);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 237, 243, 0.45);
+}
+
+.dark .scrollbar-thin {
+  scrollbar-color: rgba(230, 237, 243, 0.3) transparent;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
