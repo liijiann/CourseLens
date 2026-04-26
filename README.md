@@ -13,6 +13,35 @@
 - 前端：Vite + React + TypeScript + Tailwind CSS
 - 后端：FastAPI + PyMuPDF + DashScope
 
+（方式一）
+## Docker 启动（recommend）
+
+只需要安装 Docker Desktop。
+
+**1. 启动Docker Desktop **
+**2. 启动前后端**
+
+```bash
+docker compose up --build
+```
+
+**3. 打开浏览器**
+
+```text
+http://localhost:3000
+```
+
+**4. 停止服务**
+
+```bash
+docker compose down
+```
+
+说明：
+- 前端：`http://localhost:3000`
+- 后端：`http://localhost:8000`
+
+（方式二）
 ## 环境要求
 
 - Node.js 18+
@@ -49,33 +78,7 @@ http://localhost:3000
 打开阿里百炼平台（[申请地址](https://bailian.console.aliyun.com/)） -> API Key，创建 API Key , 复制到 SlideRead 平台 （通过Qwen API使用大模型会产生少量费用，注意余额）。
 ```
 
-## Docker 一键启动（推荐）
 
-只需要安装 Docker Desktop（无需本地安装 Python/Node）。
-
-**1. 启动前后端**
-
-```bash
-docker compose up --build
-```
-
-**2. 打开浏览器**
-
-```text
-http://localhost:3000
-```
-
-**3. 停止服务**
-
-```bash
-docker compose down
-```
-
-说明：
-- 前端：`http://localhost:3000`
-- 后端：`http://localhost:8000`
-- API Key 在网页设置里填写即可，不需要写入仓库
-- 如需自定义前端 API 地址，可修改 `frontend/.env.example` 或 `docker-compose.yml`
 ## demo
 
 <img width="2559" height="1401" alt="image" src="https://github.com/user-attachments/assets/8d75cba6-eed8-4935-bcda-0dfcd45bfe08" />
