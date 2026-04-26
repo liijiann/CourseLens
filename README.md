@@ -45,36 +45,29 @@ docker compose down
 
 - Node.js 18+
 - Python 3.11+
-- DashScope API Key（[申请地址](https://bailian.console.aliyun.com/)）
 
-## 前提：安装环境
-命令行分别输入：
+## 1. 安装环境
   ```winget install OpenJS.NodeJS ```
   ``` winget install Python.Python.3.11```
-## 快速启动
 
-**1. 启动后端**
+**2. 启动后端**
 
 ```
 双击 start_backend.bat
 ```
 
-**2. 启动前端**
+**3. 启动前端**
 
 ```
 双击 start_frontend.bat
 ```
 
-**3. 等待前后端环境安装**
+**4. 等待前后端环境安装**
 
-**4. 打开浏览器**
+**5. 打开浏览器**
 
 ```
 http://localhost:3000
-```
-**5. API Key**
-```
-打开阿里百炼平台（[申请地址](https://bailian.console.aliyun.com/)） -> API Key，创建 API Key , 复制到 SlideRead 平台 （通过Qwen API使用大模型会产生少量费用，注意余额）。
 ```
 
 
