@@ -13,10 +13,10 @@
 - 前端：Vite + React + TypeScript + Tailwind CSS
 - 后端：FastAPI + PyMuPDF + DashScope
 
-（方式一）
+## （方式一）
 ## Docker 启动（recommend）
 
-只需要安装 Docker Desktop。
+**只需要安装 Docker Desktop**
 
 **1. 启动Docker Desktop **
 **2. 启动前后端**
@@ -41,7 +41,7 @@ docker compose down
 - 前端：`http://localhost:3000`
 - 后端：`http://localhost:8000`
 
-（方式二）
+## （方式二）
 ## 环境要求
 
 - Node.js 18+
