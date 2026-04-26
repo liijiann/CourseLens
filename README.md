@@ -77,5 +77,6 @@ http://localhost:3000
 <img width="2559" height="1401" alt="image" src="https://github.com/user-attachments/assets/8d75cba6-eed8-4935-bcda-0dfcd45bfe08" />
 <img width="2559" height="1405" alt="image" src="https://github.com/user-attachments/assets/2bcf0172-b014-4bf2-8f2e-c7d325e447e1" />
 <img width="2559" height="1405" alt="image" src="https://github.com/user-attachments/assets/bed979ac-169b-4b4f-9c3a-2fd0e2fee349" />
+<img width="2559" height="1400" alt="image" src="https://github.com/user-attachments/assets/f1d31d5a-1cd1-472b-b3a8-af859f8b6d1d" />
 
 <img width="2559" height="1402" alt="image" src="https://github.com/user-attachments/assets/1e16873c-241c-4b33-8e07-781fadea6435" />
