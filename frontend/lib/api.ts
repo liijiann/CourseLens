@@ -138,9 +138,14 @@ export async function streamExplanation(
   model: string,
   onEvent: (event: StreamEvent) => void,
   signal?: AbortSignal,
+  options?: { force?: boolean; withContext?: boolean },
 ): Promise<void> {
+  const params = new URLSearchParams();
+  if (options?.force) params.set('force', 'true');
+  if (options?.withContext) params.set('with_context', 'true');
+  const qs = params.toString() ? `?${params.toString()}` : '';
   const response = await fetch(
-    `${API_BASE}/api/explain/${sessionId}/${pageNumber}`,
+    `${API_BASE}/api/explain/${sessionId}/${pageNumber}${qs}`,
     {
       method: 'GET',
       headers: {

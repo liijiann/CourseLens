@@ -28,7 +28,7 @@ export default function ChatBox({
   const glass = bubbleStyle === 'glass';
   const userBubble = glass
     ? 'border border-black/5 bg-white/70 text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-white/8 dark:bg-white/8 dark:text-[var(--dark-text)]'
-    : 'bg-slate-100 text-slate-700 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-text)]';
+    : 'bg-gradient-to-br from-[#ececf0] to-[#f6f6f8] dark:from-[var(--dark-surface-elev)] dark:to-[var(--dark-surface)] text-slate-700 dark:text-[var(--dark-text)]';
   const aiBubble = glass
     ? 'border border-black/5 bg-white/50 text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-white/8 dark:bg-white/5 dark:text-[var(--dark-text)]'
     : 'bg-slate-50 text-slate-800 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-text)]';
@@ -96,7 +96,7 @@ export default function ChatBox({
               type="button"
               onClick={onSend}
               disabled={sending || !input.trim()}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-[var(--dark-button-bg)] dark:hover:bg-[var(--dark-button-hover)] dark:disabled:bg-[var(--dark-disabled)]"
+              className="send-btn inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-[var(--dark-button-bg)] dark:hover:bg-[var(--dark-button-hover)] dark:disabled:bg-[var(--dark-disabled)]"
               title="发送"
             >
               {sending

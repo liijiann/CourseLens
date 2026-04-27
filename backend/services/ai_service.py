@@ -307,8 +307,11 @@ async def stream_page_explanation(
     total_pages: int,
     model: str,
     api_key_override: str | None = None,
+    prev_image_path: Path | None = None,
 ) -> AsyncGenerator[str, None]:
     data_url = _image_to_data_url(image_path)
+    prev_data_url = _image_to_data_url(prev_image_path) if prev_image_path else None
+
     system_prompt = (
         '你是课件伴学助手。默认风格：短、直、实用。\n'
         '仔细观察图片，提取其中的所有重要文本信息、图表结构和说明文字\n'
@@ -317,22 +320,34 @@ async def stream_page_explanation(
         'Markdown格式输出：段落、列表、行内公式 $...$、块公式 $$...$$\n'
         '优先用 ##、### 标题，不要只写"1. 2. 3."伪标题\n'
     )
-    user_prompt = (
-        f'这是课件第 {page_number} 页（共 {total_pages} 页）。\n'
-        '尽量不要用括号做行内注释，术语直接用，必要时单独一行解释，确保用户阅读的观感舒适\n'
-        '不要仅仅描述图片内容，对考试重难点必须做出解读\n'
-        '简体中文回答\n'
-    )
+
+    if prev_data_url:
+        user_content: list[dict] = [
+            {'type': 'text', 'text': (
+                f'以下是课件第 {page_number - 1} 页（上一页）和第 {page_number} 页（当前页），共 {total_pages} 页。\n'
+                '请专注解读【当前页】（第二张图）的内容。\n'
+                '上一页图片仅供识别跨页延续的概念、推导或题目，不要重复或总结上一页内容。\n'
+                '尽量不要用括号做行内注释，术语直接用，必要时单独一行解释\n'
+                '不要仅仅描述图片内容，对考试重难点必须做出解读\n'
+                '简体中文回答\n'
+            )},
+            {'type': 'image_url', 'image_url': {'url': prev_data_url}},
+            {'type': 'image_url', 'image_url': {'url': data_url}},
+        ]
+    else:
+        user_content = [
+            {'type': 'text', 'text': (
+                f'这是课件第 {page_number} 页（共 {total_pages} 页）。\n'
+                '尽量不要用括号做行内注释，术语直接用，必要时单独一行解释\n'
+                '不要仅仅描述图片内容，对考试重难点必须做出解读\n'
+                '简体中文回答\n'
+            )},
+            {'type': 'image_url', 'image_url': {'url': data_url}},
+        ]
 
     messages = [
         {'role': 'system', 'content': system_prompt},
-        {
-            'role': 'user',
-            'content': [
-                {'type': 'text', 'text': user_prompt},
-                {'type': 'image_url', 'image_url': {'url': data_url}},
-            ],
-        },
+        {'role': 'user', 'content': user_content},
     ]
 
     async for text in _stream_chat_completions(messages, model, api_key_override):

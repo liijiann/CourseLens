@@ -3,10 +3,13 @@ backend/.venv/
 backend/storage/**
 !backend/storage/.gitkeep
 **/__pycache__/
+*.pyc
+*.pyo
 
 # Node
 frontend/node_modules/
 frontend/dist/
+frontend/.next/
 
 # Environment
 **/.env
@@ -16,10 +19,21 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .claude/
 .codebuddy/
+.workbuddy/
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Logs
 *.log
+
+# Build artifacts
+*.egg-info/
+build/
+dist/

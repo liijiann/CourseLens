@@ -38,7 +38,7 @@ export default function SelectionAskButton({
   const glass = bubbleStyle === 'glass';
   const userBubble = glass
     ? 'border border-black/5 bg-white/70 text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-white/8 dark:bg-white/8 dark:text-[var(--dark-text)]'
-    : 'bg-slate-100 text-slate-700 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-text)]';
+    : 'bg-gradient-to-br from-[#ececf0] to-[#f6f6f8] dark:from-[var(--dark-surface-elev)] dark:to-[var(--dark-surface)] text-slate-700 dark:text-[var(--dark-text)]';
   const aiBubble = glass
     ? 'border border-black/5 bg-white/50 text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.06)] backdrop-blur-md dark:border-white/8 dark:bg-white/5 dark:text-[var(--dark-text)]'
     : 'bg-slate-50 text-slate-800 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-text)]';
@@ -59,11 +59,13 @@ export default function SelectionAskButton({
   // isWaitingReply: true only after user sends from THIS dialog session
   const [isWaitingReply, setIsWaitingReply] = useState(false);
 
+  const [inputFocused, setInputFocused] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const dragOffset = useRef<Pos>({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const selectedTextRef = useRef('');
+  const refreshSelectionRafRef = useRef<number | null>(null);
   // snapshot of chat.length when dialog opened
   const chatBaseRef = useRef(0);
 
@@ -103,30 +105,66 @@ export default function SelectionAskButton({
     }
   }, [chat, dialogOpen]);
 
+  const clearSelectionUi = useCallback(() => {
+    setBtnPos(null);
+  }, []);
+
   // Selection detection
   const handleSelectionChange = useCallback(() => {
-    if (dialogOpen) return;
+    if (dialogOpen) {
+      clearSelectionUi();
+      return;
+    }
     const sel = window.getSelection();
     const text = sel?.toString().trim() ?? '';
     if (!text || !sel || sel.rangeCount === 0) {
-      setBtnPos(null);
+      clearSelectionUi();
       return;
     }
     const container = containerRef.current;
-    if (!container) return;
-    if (!container.contains(sel.anchorNode)) {
-      setBtnPos(null);
+    if (!container) {
+      clearSelectionUi();
       return;
     }
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    selectedTextRef.current = text;
+    const range = sel.getRangeAt(0);
+    if (!container.contains(range.commonAncestorContainer)) {
+      clearSelectionUi();
+      return;
+    }
+    const rect = range.getBoundingClientRect();
+    selectedTextRef.current = text.replace(/[^\S\n]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
     setBtnPos({ x: rect.left + rect.width / 2, y: rect.top });
-  }, [containerRef, dialogOpen]);
+  }, [clearSelectionUi, containerRef, dialogOpen]);
 
   useEffect(() => {
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, [handleSelectionChange]);
+
+  const scheduleSelectionRefresh = useCallback(() => {
+    if (refreshSelectionRafRef.current !== null) return;
+    refreshSelectionRafRef.current = window.requestAnimationFrame(() => {
+      refreshSelectionRafRef.current = null;
+      handleSelectionChange();
+    });
+  }, [handleSelectionChange]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.addEventListener('scroll', scheduleSelectionRefresh, { passive: true });
+    window.addEventListener('resize', scheduleSelectionRefresh);
+    return () => {
+      container.removeEventListener('scroll', scheduleSelectionRefresh);
+      window.removeEventListener('resize', scheduleSelectionRefresh);
+    };
+  }, [containerRef, scheduleSelectionRefresh]);
+
+  useEffect(() => () => {
+    if (refreshSelectionRafRef.current !== null) {
+      window.cancelAnimationFrame(refreshSelectionRafRef.current);
+    }
+  }, []);
 
   // Hide button on outside click
   useEffect(() => {
@@ -152,6 +190,7 @@ export default function SelectionAskButton({
     setDialogOpen(true);
     setAutoFollow(true);
     setBtnPos(null);
+    setInputFocused(false);
     window.getSelection()?.removeAllRanges();
   }, [btnPos, chat.length]);
 
@@ -293,12 +332,13 @@ export default function SelectionAskButton({
           <div className="px-3 pb-3 pt-2">
             <div className="relative rounded-2xl border border-black/10 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.06)] focus-within:border-black/20 transition-colors dark:border-slate-300 dark:bg-white">
               <textarea
-                autoFocus
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="输入追问内容..."
-                rows={2}
-                className="no-scrollbar block w-full resize-none overflow-y-auto bg-transparent pl-3.5 pr-12 pb-9 pt-2.5 text-sm text-black outline-none placeholder:text-slate-500 dark:text-black dark:placeholder:text-slate-500"
+                rows={inputFocused ? 2 : 1}
+                className="no-scrollbar block w-full resize-none overflow-y-auto bg-transparent pl-3.5 pr-12 pb-9 pt-2.5 text-sm text-black outline-none placeholder:text-slate-500 transition-all duration-200 dark:text-black dark:placeholder:text-slate-500"
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

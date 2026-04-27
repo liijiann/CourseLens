@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { streamExplanation } from '@/lib/api';
 import { SessionResponse } from '@/lib/types';
@@ -24,23 +24,39 @@ export function useExplainStream({
   updatePage,
 }: UseExplainStreamParams) {
   const explainControllers = useRef<Map<number, AbortController>>(new Map());
+  // Pending chunk buffers per page — flushed via rAF to batch setState calls
+  const chunkBuffers = useRef<Map<number, string>>(new Map());
+  const rafHandle = useRef<number | null>(null);
 
-  const startExplain = useCallback(
-    async (pageNumber: number) => {
-      if (!session || pageNumber < 1 || pageNumber > session.totalPages) return;
+  const flushChunks = useCallback(() => {
+    rafHandle.current = null;
+    for (const [page, text] of chunkBuffers.current.entries()) {
+      if (!text) continue;
+      updatePage(page, (current) => ({
+        ...current,
+        explanation: current.explanation + text,
+      }));
+    }
+    chunkBuffers.current.clear();
+  }, [updatePage]);
 
-      const now = pagesRef.current[pageNumber] ?? EMPTY_PAGE_STATE;
-      if (now.status === 'done') return;
-      if (explainControllers.current.has(pageNumber)) return;
+  const scheduleFlush = useCallback(() => {
+    if (rafHandle.current !== null) return;
+    rafHandle.current = requestAnimationFrame(flushChunks);
+  }, [flushChunks]);
 
-      const controller = new AbortController();
-      explainControllers.current.set(pageNumber, controller);
-
+  const runStream = useCallback(
+    async (
+      pageNumber: number,
+      controller: AbortController,
+      options?: { force?: boolean; withContext?: boolean },
+    ) => {
+      if (!session) return;
       updatePage(pageNumber, (current) => ({
         ...current,
         status: 'loading',
         error: '',
-        explanation: current.status === 'error' ? '' : current.explanation,
+        explanation: options?.force ? '' : (current.status === 'error' ? '' : current.explanation),
       }));
 
       try {
@@ -50,13 +66,21 @@ export function useExplainStream({
           session.model,
           (event) => {
             if (event.type === 'chunk') {
-              updatePage(pageNumber, (current) => ({
-                ...current,
-                explanation: current.explanation + event.content,
-              }));
+              // Buffer chunks and flush via rAF to batch React state updates
+              chunkBuffers.current.set(
+                pageNumber,
+                (chunkBuffers.current.get(pageNumber) ?? '') + event.content,
+              );
+              scheduleFlush();
               return;
             }
             if (event.type === 'done') {
+              // Flush any remaining buffered chunks before marking done
+              if (rafHandle.current !== null) {
+                cancelAnimationFrame(rafHandle.current);
+                rafHandle.current = null;
+              }
+              flushChunks();
               updatePage(pageNumber, (current) => ({ ...current, status: 'done' }));
               return;
             }
@@ -69,6 +93,7 @@ export function useExplainStream({
             }
           },
           controller.signal,
+          options,
         );
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
@@ -79,10 +104,53 @@ export function useExplainStream({
           }));
         }
       } finally {
+        chunkBuffers.current.delete(pageNumber);
         explainControllers.current.delete(pageNumber);
       }
     },
-    [pagesRef, session, sessionId, updatePage],
+    [session, sessionId, updatePage, scheduleFlush, flushChunks],
+  );
+
+  const startExplain = useCallback(
+    async (pageNumber: number) => {
+      if (!session || pageNumber < 1 || pageNumber > session.totalPages) return;
+      const now = pagesRef.current[pageNumber] ?? EMPTY_PAGE_STATE;
+      if (now.status === 'done') return;
+      if (explainControllers.current.has(pageNumber)) return;
+
+      const controller = new AbortController();
+      explainControllers.current.set(pageNumber, controller);
+      await runStream(pageNumber, controller);
+    },
+    [pagesRef, runStream, session],
+  );
+
+  const forceExplain = useCallback(
+    async (pageNumber: number) => {
+      if (!session || pageNumber < 1 || pageNumber > session.totalPages) return;
+
+      explainControllers.current.get(pageNumber)?.abort();
+      explainControllers.current.delete(pageNumber);
+
+      const controller = new AbortController();
+      explainControllers.current.set(pageNumber, controller);
+      await runStream(pageNumber, controller, { force: true });
+    },
+    [runStream, session],
+  );
+
+  const explainWithContext = useCallback(
+    async (pageNumber: number) => {
+      if (!session || pageNumber < 1 || pageNumber > session.totalPages) return;
+
+      explainControllers.current.get(pageNumber)?.abort();
+      explainControllers.current.delete(pageNumber);
+
+      const controller = new AbortController();
+      explainControllers.current.set(pageNumber, controller);
+      await runStream(pageNumber, controller, { force: true, withContext: true });
+    },
+    [runStream, session],
   );
 
   const abortExplainOutsideWindow = useCallback(
@@ -106,10 +174,12 @@ export function useExplainStream({
 
   useEffect(() => {
     return () => {
+      if (rafHandle.current !== null) cancelAnimationFrame(rafHandle.current);
       for (const controller of explainControllers.current.values()) {
         controller.abort();
       }
       explainControllers.current.clear();
+      chunkBuffers.current.clear();
     };
   }, [sessionId]);
 
@@ -132,5 +202,5 @@ export function useExplainStream({
     };
   }, [abortExplainOutsideWindow, currentPage, session, startExplain]);
 
-  return { startExplain };
+  return { startExplain, forceExplain, explainWithContext };
 }

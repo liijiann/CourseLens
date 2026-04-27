@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { LayoutList, Moon, Settings, Sun, SunMoon } from 'lucide-react';
+import { Flame, LayoutList, Moon, Settings, Sun } from 'lucide-react';
 
 import ChatBox from '@/components/ChatBox';
 import { CourseSidebar } from '@/components/CourseSidebar';
 import ExplanationPanel from '@/components/ExplanationPanel';
 import PDFViewer from '@/components/PDFViewer';
+import ReminderCat from '@/components/ReminderCat';
 import { SettingsModal } from '@/components/SettingsModal';
 import { UploadModal } from '@/components/UploadModal';
 import { useChatStream } from '@/hooks/useChatStream';
@@ -24,8 +25,8 @@ import {
 
 function ThemeIcon({ theme }: { theme: Theme }) {
   if (theme === 'dark') return <Moon size={15} />;
-  if (theme === 'light') return <Sun size={15} />;
-  return <SunMoon size={15} />;
+  if (theme === 'warm') return <Flame size={15} className="text-amber-600" />;
+  return <Sun size={15} />;
 }
 
 export default function StudyPage() {
@@ -70,8 +71,9 @@ export default function StudyPage() {
 
   const currentState = pages[currentPage] ?? EMPTY_PAGE_STATE;
   const canAsk = currentState.status === 'done' && currentState.explanation.length > 0;
+  const totalPages = session?.totalPages ?? 1;
 
-  const { startExplain } = useExplainStream({
+  const { startExplain, forceExplain, explainWithContext } = useExplainStream({
     sessionId,
     session,
     currentPage,
@@ -97,6 +99,13 @@ export default function StudyPage() {
   const handleQuickAsk = useCallback((message: string) => {
     void sendChatMessage(message);
   }, [sendChatMessage]);
+
+  const handlePrev = useCallback(() => setCurrentPage((p) => Math.max(1, p - 1)), [setCurrentPage]);
+  const handleNext = useCallback(
+    () => setCurrentPage((p) => Math.min(totalPages, p + 1)),
+    [setCurrentPage, totalPages],
+  );
+  const handleGoToPage = useCallback((page: number) => setCurrentPage(page), [setCurrentPage]);
 
   useEffect(() => {
     setActiveTab('explain');
@@ -184,15 +193,15 @@ export default function StudyPage() {
               pdfUrl={pdfUrl}
               pageNumber={currentPage}
               totalPages={session.totalPages}
-              onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              onNext={() => setCurrentPage((p) => Math.min(session.totalPages, p + 1))}
-              onGoToPage={(page) => setCurrentPage(page)}
+              onPrev={handlePrev}
+              onNext={handleNext}
+              onGoToPage={handleGoToPage}
             />
           </div>
 
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden" style={{ width: '35%' }}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-3 pt-2 dark:border-[var(--dark-border)]">
-              <div className="flex gap-1">
+              <div className="flex gap-1 segmented-control">
                 <button
                 type="button"
                 onClick={() => setActiveTab('explain')}
@@ -242,6 +251,7 @@ export default function StudyPage() {
                 />
               ) : (
                 <ExplanationPanel
+                  sessionId={sessionId}
                   pageNumber={currentPage}
                   status={currentState.status}
                   explanation={currentState.explanation}
@@ -261,6 +271,8 @@ export default function StudyPage() {
                     }));
                     startExplain(currentPage);
                   }}
+                  onRegenerate={() => void forceExplain(currentPage)}
+                  onRegenerateWithContext={() => void explainWithContext(currentPage)}
                   onQuickAsk={handleQuickAsk}
                   onAbort={abortChat}
                 />
@@ -274,6 +286,7 @@ export default function StudyPage() {
 
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
       {showSettings && <SettingsModal bubbleStyle={bubbleStyle} onBubbleStyleChange={setBubbleStyle} onClose={() => setShowSettings(false)} />}
+      <ReminderCat />
     </main>
   );
 }

@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素猫点阵编辑器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    background: #16213e;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #0f3460;
+  }
+  h1 { font-size: 17px; font-weight: 600; }
+  .header-hint { font-size: 12px; color: #888; }
+  .header-actions { display: flex; gap: 8px; }
+
+  .btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-primary { background: #e94560; color: #fff; }
+  .btn-primary:hover { background: #c73e54; }
+  .btn-secondary { background: #0f3460; color: #ccc; border-color: #1a4a7a; }
+  .btn-secondary:hover { background: #1a4a7a; color: #fff; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* Layout */
+  main {
+    display: grid;
+    grid-template-columns: 280px 1fr 300px;
+    gap: 0;
+    height: calc(100vh - 57px);
+  }
+
+  /* Left: cat selector */
+  .sidebar {
+    background: #16213e;
+    border-right: 1px solid #0f3460;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .sidebar-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #668;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+  .cat-list { display: flex; flex-direction: column; gap: 6px; }
+  .cat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+    border: 1px solid transparent;
+  }
+  .cat-item:hover { background: #1a3a5c; }
+  .cat-item.active {
+    background: #1a4a7a;
+    border-color: #e94560;
+  }
+  .cat-item-preview {
+    width: 40px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0d1b33;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .cat-item-info { font-size: 12px; color: #bbc; }
+  .cat-item-num { font-size: 10px; color: #668; }
+
+  /* Center: editor canvas */
+  .editor-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: auto;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .canvas-wrapper {
+    position: relative;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+    user-select: none;
+  }
+
+  .pixel-grid {
+    display: grid;
+    gap: 0;
+  }
+  .grid-cell {
+    width: 16px;
+    height: 16px;
+    cursor: crosshair;
+    transition: transform 0.05s;
+  }
+  .grid-cell:hover { transform: scale(1.15); z-index: 1; position: relative; }
+
+  /* Right: tools & preview & code */
+  .panel {
+    background: #16213e;
+    border-left: 1px solid #0f3460;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .panel-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #668;
+    margin-bottom: 8px;
+  }
+
+  /* Color palette */
+  .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .color-swatch {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.1s;
+  }
+  .color-swatch:hover { transform: scale(1.1); }
+  .color-swatch.active { border-color: #e94560; box-shadow: 0 0 0 1px #e94560; }
+  .color-custom-row {
+    grid-column: span 5;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .color-custom-row input[type=color] {
+    width: 28px; height: 28px; border: none; border-radius: 5px; cursor: pointer; background: none;
+  }
+  .color-custom-row input[type=text] {
+    flex: 1;
+    background: #0d1b33;
+    border: 1px solid #1a4a7a;
+    color: #ddd;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: monospace;
+  }
+
+  /* Tools */
+  .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tool-btn {
+    padding: 8px;
+    background: #0d1b33;
+    border: 1px solid #1a4a7a;
+    border-radius: 6px;
+    color: #bbc;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.1s;
+  }
+  .tool-btn:hover { background: #1a3a5c; color: #fff; }
+  .tool-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+
+  /* Preview */
+  .preview-box {
+    background: #0d1b33;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+  }
+  .preview-pixel-base { position: relative; }
+  .preview-dot {
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 4px;
+    image-rendering: pixelated;
+  }
+
+  /* Code output */
+  .code-output {
+    background: #0d1b33;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 10px;
+    color: #8be9fd;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+
+  /* Stats */
+  .stats { display: flex; gap: 12px; font-size: 11px; color: #888; }
+  .stat-item { display: flex; align-items: center; gap: 4px; }
+  .stat-val { color: #e94560; font-weight: 600; }
+
+  /* Mode indicator */
+  .mode-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 6px;
+    text-align: center;
+    font-size: 11px;
+    border-radius: 5px;
+    cursor: pointer;
+    background: #0d1b33;
+    border: 1px solid #1a4a7a;
+    color: #888;
+    transition: all 0.1s;
+  }
+  .mode-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f3460;
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🐱 像素猫点阵编辑器</h1>
+    <span class="header-hint">左键=绘制 | 右键=擦除 | 滚轮=调整画布</span>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary btn-sm" onclick="exportAll()">导出全部到 PixelCat.tsx</button>
+    <button class="btn btn-primary btn-sm" onclick="exportCurrent()">复制当前代码</button>
+  </div>
+</header>
+
+<main>
+  <!-- Left: Cat selector -->
+  <aside class="sidebar">
+    <div class="sidebar-title">选择猫咪 (共 {{cats.length}} 只)</div>
+    <div class="cat-list">
+      <div v-for="(cat, i) in cats"
+           :key="i"
+           class="cat-item"
+           :class="{ active: selectedIdx === i }"
+           @click="selectCat(i)">
+        <div class="cat-item-preview">
+          <div style="position:relative;" :style="previewSize(i)"></div>
+        </div>
+        <div>
+          <div class="cat-item-info">{{ cat.name }}</div>
+          <div class="cat-item-num">#{{ i + 1 }} · {{ cat.pixels.length }} px</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Center: Canvas -->
+  <section class="editor-area">
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <div class="pixel-grid" id="pixelGrid"></div>
+    </div>
+  </section>
+
+  <!-- Right: Tools -->
+  <aside class="panel">
+    <div>
+      <div class="panel-section-title">工具</div>
+      <div class="mode-bar">
+        <button class="mode-btn" :class="{active: tool==='paint'}" @click="setTool('paint')">✏️ 画笔</button>
+        <button class="mode-btn" :class="{active: tool==='erase'}" @click="setTool('erase')">🧹 橡皮</button>
+      </div>
+
+      <div class="panel-section-title" style="margin-top:12px;">调色板</div>
+      <div class="palette">
+        <div v-for="c in palette" :key="c"
+             class="color-swatch"
+             :class="{active: currentColor===c}"
+             :style="{background:c}"
+             @click="setColor(c)"
+             :title="c"></div>
+      </div>
+      <div class="color-custom-row">
+        <input type="color" v-model="customColor" @input="setColor(customColor)" />
+        <input type="text" v-model="currentColor" @change="setColor(currentColor)" placeholder="#RRGGBB" />
+      </div>
+
+      <div class="tools-grid" style="margin-top:10px;">
+        <button class="tool-btn" @click="fillBg(currentColor)">填充背景</button>
+        <button class="tool-btn" @click="clearCanvas()">清空画布</button>
+        <button class="tool-btn" @click="undoLast()">撤销</button>
+        <button class="tool-btn" @click="redoNext()">重做</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-section-title">实时预览</div>
+      <div class="preview-box">
+        <div class="preview-pixel-base" id="livePreview"></div>
+      </div>
+      <div class="stats" style="margin-top:8px;">
+        <span class="stat-item">像素数: <span class="stat-val">{{ currentPixels.length }}</span></span>
+        <span class="stat-item">尺寸: <span class="stat-val">{{ gridW }}×{{ gridH }}</span></span>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-section-title">输出代码 (TypeScript)</div>
+      <div class="code-output" id="codeOutput">{{ codeOutput }}</div>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+const { createApp, ref, reactive, computed, watch, nextTick } = Vue;
+
+// ══════════════════════════════════════
+//  All 9 cats data
+// ══════════════════════════════════════
+const INITIAL_CATS = [
+  // Cat 1: 纸箱里的橘白猫
+  {
+    name: '纸箱里的橘白猫',
+    pixels: [
+      [2,0,'#D4A574'],[8,0,'#D4A574'],
+      [1,1,'#D4A574'],[2,1,'#F5E6CC'],[3,1,'#D4A574'],[7,1,'#D4A574'],[8,1,'#F5E6CC'],[9,1,'#D4A574'],
+      [0,2,'#F5E6CC'],[1,2,'#F5E6CC'],[2,2,'#F5E6CC'],[3,2,'#F5E6CC'],[4,2,'#F5E6CC'],[5,2,'#F5E6CC'],[6,2,'#F5E6CC'],[7,2,'#F5E6CC'],[8,2,'#F5E6CC'],[9,2,'#F5E6CC'],[10,2,'#F5E6CC'],
+      [1,3,'#F5E6CC'],[2,3,'#333333'],[3,3,'#F5E6CC'],[4,3,'#F5E6CC'],[5,3,'#F5E6CC'],[6,3,'#F5E6CC'],[7,3,'#333333'],[8,3,'#F5E6CC'],[9,3,'#F5E6CC'],[10,3,'#F5E6CC'],
+      [1,4,'#F5E6CC'],[2,4,'#F5E6CC'],[3,4,'#F5E6CC'],[4,4,'#F5E6CC'],[5,4,'#FF9999'],[6,4,'#F5E6CC'],[7,4,'#F5E6CC'],[8,4,'#F5E6CC'],[9,4,'#F5E6CC'],[10,4,'#F5E6CC'],
+      [0,5,'#C4956A'],[1,5,'#F5E6CC'],[2,5,'#F5E6CC'],[3,5,'#F5E6CC'],[4,5,'#F5E6CC'],[5,5,'#F5E6CC'],[6,5,'#F5E6CC'],[7,5,'#F5E6CC'],[8,5,'#F5E6CC'],[9,5,'#F5E6CC'],[10,5,'#C4956A'],
+      [0,6,'#C4956A'],[1,6,'#FFFFFF'],[2,6,'#FFFFFF'],[3,6,'#F5E6CC'],[4,6,'#F5E6CC'],[5,6,'#F5E6CC'],[6,6,'#F5E6CC'],[7,6,'#F5E6CC'],[8,6,'#FFFFFF'],[9,6,'#FFFFFF'],[10,6,'#C4956A'],
+      [-1,8,'#B8925E'],[0,8,'#C4956A'],[1,8,'#C4956A'],[2,8,'#F5E6CC'],[3,8,'#F5E6CC'],[4,8,'#F5E6CC'],[5,8,'#F5E6CC'],[6,8,'#F5E6CC'],[7,8,'#F5E6CC'],[8,8,'#F5E6CC'],[9,8,'#C4956A'],[10,8,'#C4956A'],[11,8,'#B8925E'],
+      [-1,9,'#B8925E'],[0,9,'#C4956A'],[1,9,'#D4A574'],[2,9,'#C4956A'],[3,9,'#C4956A'],[4,9,'#C4956A'],[5,9,'#C4956A'],[6,9,'#C4956A'],[7,9,'#C4956A'],[8,9,'#C4956A'],[9,9,'#D4A574'],[10,9,'#C4956A'],[11,9,'#B8925E'],
+    ]
+  },
+  // Cat 2
+  {
+    name: '蓝垫子上的灰猫',
+    pixels: [
+      [3,0,'#A0A0A0'],[8,0,'#A0A0A0'],
+      [2,1,'#A0A0A0'],[3,1,'#D0D0D0'],[4,1,'#A0A0A0'],[7,1,'#A0A0A0'],[8,1,'#D0D0D0'],[9,1,'#A0A0A0'],
+      [2,2,'#D0D0D0'],[3,2,'#D0D0D0'],[4,2,'#D0D0D0'],[5,2,'#D0D0D0'],[6,2,'#D0D0D0'],[7,2,'#D0D0D0'],[8,2,'#D0D0D0'],[9,2,'#D0D0D0'],
+      [2,3,'#D0D0D0'],[3,3,'#333333'],[4,3,'#333333'],[5,3,'#D0D0D0'],[6,3,'#D0D0D0'],[7,3,'#333333'],[8,3,'#333333'],[9,3,'#D0D0D0'],
+      [3,4,'#D0D0D0'],[4,4,'#D0D0D0'],[5,4,'#FF9999'],[6,4,'#D0D0D0'],[7,4,'#D0D0D0'],
+      [2,5,'#D0D0D0'],[3,5,'#D0D0D0'],[4,5,'#D0D0D0'],[5,5,'#D0D0D0'],[6,5,'#D0D0D0'],[7,5,'#D0D0D0'],[8,5,'#D0D0D0'],
+      [1,6,'#A0A0A0'],[2,6,'#D0D0D0'],[3,6,'#D0D0D0'],[4,6,'#D0D0D0'],[5,6,'#D0D0D0'],[6,6,'#D0D0D0'],[7,6,'#D0D0D0'],[8,6,'#D0D0D0'],[9,6,'#A0A0A0'],
+      [0,7,'#87CEEB'],[1,7,'#87CEEB'],[2,7,'#87CEEB'],[3,7,'#87CEEB'],[4,7,'#87CEEB'],[5,7,'#87CEEB'],[6,7,'#87CEEB'],[7,7,'#87CEEB'],[8,7,'#87CEEB'],[9,7,'#87CEEB'],[10,7,'#87CEEB'],
+      [0,8,'#5FB3D4'],[1,8,'#5FB3D4'],[2,8,'#5FB3D4'],[3,8,'#5FB3D4'],[4,8,'#5FB3D4'],[5,8,'#5FB3D4'],[6,8,'#5FB3D4'],[7,8,'#5FB3D4'],[8,8,'#5FB3D4'],[9,8,'#5FB3D4'],[10,8,'#5FB3D4'],
+    ]
+  },
+  // Cat 3
+  {
+    name: '绿垫子上的橘白猫',
+    pixels: [
+      [1,0,'#D4A574'],[6,0,'#D4A574'],
+      [0,1,'#D4A574'],[1,1,'#F5E6CC'],[2,1,'#D4A574'],[5,1,'#D4A574'],[6,1,'#F5E6CC'],[7,1,'#D4A574'],
+      [0,2,'#F5E6CC'],[1,2,'#F5E6CC'],[2,2,'#F5E6CC'],[3,2,'#F5E6CC'],[4,2,'#F5E6CC'],[5,2,'#F5E6CC'],[6,2,'#F5E6CC'],[7,2,'#F5E6CC'],[8,2,'#F5E6CC'],
+      [0,3,'#F5E6CC'],[1,3,'#333333'],[2,3,'#F5E6CC'],[3,3,'#F5E6CC'],[4,3,'#F5E6CC'],[5,3,'#F5E6CC'],[6,3,'#333333'],[7,3,'#F5E6CC'],[8,3,'#F5E6CC'],
+      [0,4,'#F5E6CC'],[1,4,'#F5E6CC'],[2,4,'#FF9999'],[3,4,'#F5E6CC'],[4,4,'#F5E6CC'],[5,4,'#F5E6CC'],[6,4,'#F5E6CC'],[7,4,'#F5E6CC'],[8,4,'#F5E6CC'],
+      [-1,5,'#D4A574'],[0,5,'#F5E6CC'],[1,5,'#F5E6CC'],[2,5,'#F5E6CC'],[3,5,'#F5E6CC'],[4,5,'#F5E6CC'],[5,5,'#F5E6CC'],[6,5,'#F5E6CC'],[7,5,'#F5E6CC'],[8,5,'#F5E6CC'],[9,5,'#F5E6CC'],[10,5,'#F5E6CC'],[11,5,'#D4A574'],
+      [-1,6,'#D4A574'],[0,6,'#FFFFFF'],[1,6,'#FFFFFF'],[2,6,'#F5E6CC'],[3,6,'#F5E6CC'],[4,6,'#F5E6CC'],[5,6,'#F5E6CC'],[6,6,'#F5E6CC'],[7,6,'#F5E6CC'],[8,6,'#FFFFFF'],[9,6,'#FFFFFF'],[10,6,'#D4A574'],[11,6,'#D4A574'],
+      [-1,7,'#90C695'],[0,7,'#90C695'],[1,7,'#90C695'],[2,7,'#90C695'],[3,7,'#90C695'],[4,7,'#90C695'],[5,7,'#90C695'],[6,7,'#90C695'],[7,7,'#90C695'],[8,7,'#90C695'],[9,7,'#90C695'],[10,7,'#90C695'],[11,7,'#90C695'],[12,7,'#70A675'],
+      [0,8,'#70A675'],[1,8,'#70A675'],[2,8,'#70A675'],[3,8,'#70A675'],[4,8,'#70A675'],[5,8,'#70A675'],[6,8,'#70A675'],[7,8,'#70A675'],[8,8,'#70A675'],[9,8,'#70A675'],[10,8,'#70A675'],[11,8,'#70A675'],
+    ]
+  },
+  // Cat 4
+  {
+    name: '袋子里的灰猫',
+    pixels: [
+      [2,0,'#A0A0A0'],[7,0,'#A0A0A0'],
+      [1,1,'#A0A0A0'],[2,1,'#D0D0D0'],[3,1,'#A0A0A0'],[6,1,'#A0A0A0'],[7,1,'#D0D0D0'],[8,1,'#A0A0A0'],
+      [1,2,'#D0D0D0'],[2,2,'#D0D0D0'],[3,2,'#D0D0D0'],[4,2,'#D0D0D0'],[5,2,'#D0D0D0'],[6,2,'#D0D0D0'],[7,2,'#D0D0D0'],[8,2,'#D0D0D0'],
+      [1,3,'#D0D0D0'],[2,3,'#333333'],[3,3,'#D0D0D0'],[4,3,'#D0D0D0'],[5,3,'#D0D0D0'],[6,3,'#D0D0D0'],[7,3,'#333333'],[8,3,'#D0D0D0'],
+      [1,4,'#D0D0D0'],[2,4,'#D0D0D0'],[3,4,'#FF9999'],[4,4,'#D0D0D0'],[5,4,'#D0D0D0'],[6,4,'#D0D0D0'],[7,4,'#D0D0D0'],[8,4,'#D0D0D0'],
+      [0,5,'#B8925E'],[1,5,'#D0D0D0'],[2,5,'#D0D0D0'],[3,5,'#D0D0D0'],[4,5,'#D0D0D0'],[5,5,'#D0D0D0'],[6,5,'#D0D0D0'],[7,5,'#D0D0D0'],[8,5,'#D0D0D0'],[9,5,'#B8925E'],
+      [-1,6,'#A07850'],[0,6,'#B8925E'],[1,6,'#D0D0D0'],[2,6,'#D0D0D0'],[3,6,'#D0D0D0'],[4,6,'#D0D0D0'],[5,6,'#D0D0D0'],[6,6,'#D0D0D0'],[7,6,'#D0D0D0'],[8,6,'#D0D0D0'],[9,6,'#B8925E'],[10,6,'#A07850'],
+      [-1,7,'#A07850'],[0,7,'#B8925E'],[1,7,'#B8925E'],[2,7,'#B8925E'],[3,7,'#B8925E'],[4,7,'#B8925E'],[5,7,'#B8925E'],[6,7,'#B8925E'],[7,7,'#B8925E'],[8,7,'#B8925E'],[9,7,'#B8925E'],[10,7,'#A07850'],
+      [-1,8,'#A07850'],[0,8,'#A07850'],[1,8,'#A07850'],[2,8,'#A07850'],[3,8,'#A07850'],[4,8,'#A07850'],[5,8,'#A07850'],[6,8,'#A07850'],[7,8,'#A07850'],[8,8,'#A07850'],[9,8,'#A07850'],[10,8,'#A07850'],
+    ]
+  },
+  // Cat 5
+  {
+    name: '追蝴蝶的橘白猫',
+    pixels: [
+      [0,0,'#FFE066'],[1,0,'#FFD700'],
+      [-1,1,'#FFD700'],[0,1,'#FF8C00'],[1,1,'#FFD700'],[2,1,'#FFE066'],
+      [1,2,'#FF8C00'],
+      [2,3,'#DDDDDD'],[3,4,'#BBBBBB'],[4,5,'#999999'],
+      [6,2,'#D4A574'],[10,2,'#D4A574'],
+      [5,3,'#D4A574'],[6,3,'#F5E6CC'],[7,3,'#D4A574'],[9,3,'#D4A574'],[10,3,'#F5E6CC'],[11,3,'#D4A574'],
+      [5,4,'#F5E6CC'],[6,4,'#F5E6CC'],[7,4,'#F5E6CC'],[8,4,'#F5E6CC'],[9,4,'#F5E6CC'],[10,4,'#F5E6CC'],[11,4,'#F5E6CC'],
+      [5,5,'#F5E6CC'],[6,5,'#333333'],[7,5,'#F5E6CC'],[8,5,'#F5E6CC'],[9,5,'#333333'],[10,5,'#F5E6CC'],[11,5,'#F5E6CC'],
+      [6,6,'#F5E6CC'],[7,6,'#F5E6CC'],[8,6,'#FF9999'],[9,6,'#F5E6CC'],[10,6,'#F5E6CC'],
+      [5,7,'#D4A574'],[6,7,'#F5E6CC'],[7,7,'#F5E6CC'],[8,7,'#F5E6CC'],[9,7,'#F5E6CC'],[10,7,'#D4A574'],
+      [5,8,'#D4A574'],[6,8,'#F5E6CC'],[7,8,'#FFFFFF'],[8,8,'#F5E6CC'],[9,8,'#F5E6CC'],[10,8,'#D4A574'],
+      [6,9,'#D4A574'],[7,9,'#D4A574'],[8,9,'#D4A574'],[9,9,'#D4A574'],
+      [10,9,'#D4A574'],[11,9,'#D4A574'],[12,9,'#D4A574'],
+      [12,10,'#D4A574'],[13,10,'#C4956A'],
+    ]
+  },
+  // Cat 6
+  {
+    name: '闻花瓶的灰猫',
+    pixels: [
+      [0,0,'#228B22'],[1,0,'#32CD32'],[2,0,'#228B22'],
+      [0,1,'#228B22'],[1,1,'#32CD32'],[2,1,'#228B22'],[3,1,'#228B22'],
+      [1,2,'#32CD32'],[2,2,'#228B22'],
+      [1,3,'#6495ED'],[2,3,'#6495ED'],[3,3,'#6495ED'],
+      [1,4,'#4169E1'],[2,4,'#6495ED'],[3,4,'#4169E1'],
+      [1,5,'#4169E1'],[2,5,'#4169E1'],[3,5,'#4169E1'],
+      [5,1,'#A0A0A0'],[9,1,'#A0A0A0'],
+      [4,2,'#A0A0A0'],[5,2,'#D0D0D0'],[6,2,'#A0A0A0'],[8,2,'#A0A0A0'],[9,2,'#D0D0D0'],[10,2,'#A0A0A0'],
+      [4,3,'#D0D0D0'],[5,3,'#D0D0D0'],[6,3,'#D0D0D0'],[7,3,'#D0D0D0'],[8,3,'#D0D0D0'],[9,3,'#D0D0D0'],[10,3,'#D0D0D0'],[11,3,'#D0D0D0'],
+      [4,4,'#D0D0D0'],[5,4,'#555555'],[6,4,'#555555'],[7,4,'#D0D0D0'],[8,4,'#D0D0D0'],[9,4,'#555555'],[10,4,'#555555'],[11,4,'#D0D0D0'],
+      [5,5,'#D0D0D0'],[6,5,'#FF9999'],[7,5,'#D0D0D0'],[8,5,'#D0D0D0'],
+      [5,6,'#A0A0A0'],[6,6,'#D0D0D0'],[7,6,'#D0D0D0'],[8,6,'#D0D0D0'],[9,6,'#D0D0D0'],[10,6,'#A0A0A0'],
+      [5,7,'#A0A0A0'],[6,7,'#D0D0D0'],[7,7,'#D0D0D0'],[8,7,'#D0D0D0'],[9,7,'#D0D0D0'],[10,7,'#A0A0A0'],
+      [6,8,'#A0A0A0'],[7,8,'#A0A0A0'],[8,8,'#A0A0A0'],[9,8,'#A0A0A0'],
+      [10,7,'#A0A0A0'],[11,7,'#A0A0A0'],[11,6,'#A0A0A0'],[12,6,'#A0A0A0'],
+      [12,5,'#808080'],[12,4,'#808080'],
+    ]
+  },
+  // Cat 7
+  {
+    name: '鱼旁边的橘猫',
+    pixels: [
+      [0,4,'#87CEEB'],[1,4,'#87CEEB'],[2,4,'#87CEEB'],
+      [-1,5,'#87CEEB'],[0,5,'#5FB3D4'],[1,5,'#FFFFFF'],[2,5,'#5FB3D4'],[3,5,'#87CEEB'],
+      [0,6,'#5FB3D4'],[1,6,'#5FB3D4'],[2,6,'#5FB3D4'],
+      [-1,6,'#5FB3D4'],[-2,5,'#5FB3D4'],[-2,7,'#5FB3D4'],
+      [3,1,'#D4A574'],[7,1,'#D4A574'],
+      [2,2,'#D4A574'],[3,2,'#F5E6CC'],[4,2,'#D4A574'],[6,2,'#D4A574'],[7,2,'#F5E6CC'],[8,2,'#D4A574'],
+      [2,3,'#F5E6CC'],[3,3,'#F5E6CC'],[4,3,'#F5E6CC'],[5,3,'#F5E6CC'],[6,3,'#F5E6CC'],[7,3,'#F5E6CC'],[8,3,'#F5E6CC'],
+      [2,4,'#F5E6CC'],[3,4,'#333333'],[4,4,'#F5E6CC'],[5,4,'#F5E6CC'],[6,4,'#333333'],[7,4,'#F5E6CC'],[8,4,'#F5E6CC'],
+      [3,5,'#F5E6CC'],[4,5,'#FF9999'],[5,5,'#F5E6CC'],[6,5,'#F5E6CC'],[7,5,'#F5E6CC'],
+      [3,6,'#D4A574'],[4,6,'#F5E6CC'],[5,6,'#F5E6CC'],[6,6,'#F5E6CC'],[7,6,'#F5E6CC'],[8,6,'#D4A574'],
+      [3,7,'#D4A574'],[4,7,'#F5E6CC'],[5,7,'#F5E6CC'],[6,7,'#F5E6CC'],[7,7,'#F5E6CC'],[8,7,'#D4A574'],
+      [4,8,'#D4A574'],[5,8,'#D4A574'],[6,8,'#D4A574'],[7,8,'#D4A574'],
+      [8,8,'#D4A574'],[9,8,'#D4A574'],[10,8,'#C4956A'],
+    ]
+  },
+  // Cat 8
+  {
+    name: '篮子里的灰猫',
+    pixels: [
+      [1,-1,'#B49474'],[2,-1,'#B49474'],[3,-1,'#B49474'],[4,-1,'#B49474'],[5,-1,'#B49474'],
+      [1,0,'#C4A484'],[2,0,'#D4B494'],[3,0,'#D4B494'],[4,0,'#D4B494'],[5,0,'#D4B494'],[6,0,'#D4B494'],[7,0,'#C4A484'],
+      [0,1,'#C4A484'],[1,1,'#B49474'],[2,1,'#D4B494'],[3,1,'#D4B494'],[4,1,'#D4B494'],[5,1,'#D4B494'],[6,1,'#D4B494'],[7,1,'#B49474'],[8,1,'#C4A484'],
+      [2,1,'#A0A0A0'],[6,1,'#A0A0A0'],
+      [1,2,'#A0A0A0'],[2,2,'#D0D0D0'],[3,2,'#A0A0A0'],[5,2,'#A0A0A0'],[6,2,'#D0D0D0'],[7,2,'#A0A0A0'],
+      [1,3,'#D0D0D0'],[2,3,'#D0D0D0'],[3,3,'#D0D0D0'],[4,3,'#D0D0D0'],[5,3,'#D0D0D0'],[6,3,'#D0D0D0'],[7,3,'#D0D0D0'],
+      [1,4,'#D0D0D0'],[2,4,'#444444'],[3,4,'#D0D0D0'],[4,4,'#D0D0D0'],[5,4,'#D0D0D0'],[6,4,'#444444'],[7,4,'#D0D0D0'],
+      [2,5,'#D0D0D0'],[3,5,'#FF9999'],[4,5,'#D0D0D0'],[5,5,'#D0D0D0'],[6,5,'#D0D0D0'],
+      [1,6,'#B49474'],[2,6,'#D0D0D0'],[3,6,'#D0D0D0'],[4,6,'#D0D0D0'],[5,6,'#D0D0D0'],[6,6,'#D0D0D0'],[7,6,'#B49474'],
+      [0,7,'#A48464'],[1,7,'#B49474'],[2,7,'#D0D0D0'],[3,7,'#D0D0D0'],[4,7,'#D0D0D0'],[5,7,'#D0D0D0'],[6,7,'#D0D0D0'],[7,7,'#B49474'],[8,7,'#A48464'],
+      [0,8,'#A48464'],[1,8,'#B49474'],[2,8,'#B49474'],[3,8,'#B49474'],[4,8,'#B49474'],[5,8,'#B49474'],[6,8,'#B49474'],[7,8,'#B49474'],[8,8,'#A48464'],
+      [0,9,'#947444'],[1,9,'#A48464'],[2,9,'#A48464'],[3,9,'#A48464'],[4,9,'#A48464'],[5,9,'#A48464'],[6,9,'#A48464'],[7,9,'#A48464'],[8,9,'#947444'],
+    ]
+  },
+  // Cat 9
+  {
+    name: '书堆旁的橘白猫',
+    pixels: [
+      [0,4,'#E57373'],[1,4,'#E57373'],[2,4,'#E57373'],[3,4,'#E57373'],[4,4,'#E57373'],
+      [0,5,'#81C784'],[1,5,'#81C784'],[2,5,'#81C784'],[3,5,'#81C784'],[4,5,'#81C784'],
+      [0,6,'#FFB74D'],[1,6,'#FFB74D'],[2,6,'#FFB74D'],[3,6,'#FFB74D'],[4,6,'#FFB74D'],
+      [2,2,'#FFF8DC'],[3,2,'#DEB887'],[3,3,'#DEB887'],
+      [7,2,'#D4A574'],[11,2,'#D4A574'],
+      [6,3,'#D4A574'],[7,3,'#F5E6CC'],[8,3,'#D4A574'],[10,3,'#D4A574'],[11,3,'#F5E6CC'],[12,3,'#D4A574'],
+      [6,4,'#F5E6CC'],[7,4,'#F5E6CC'],[8,4,'#F5E6CC'],[9,4,'#F5E6CC'],[10,4,'#F5E6CC'],[11,4,'#F5E6CC'],[12,4,'#F5E6CC'],
+      [6,5,'#F5E6CC'],[7,5,'#333333'],[8,5,'#F5E6CC'],[9,5,'#F5E6CC'],[10,5,'#333333'],[11,5,'#F5E6CC'],[12,5,'#F5E6CC'],
+      [7,6,'#F5E6CC'],[8,6,'#FF9999'],[9,6,'#F5E6CC'],[10,6,'#F5E6CC'],[11,6,'#F5E6CC'],
+      [6,7,'#D4A574'],[7,7,'#F5E6CC'],[8,7,'#F5E6CC'],[9,7,'#F5E6CC'],[10,7,'#F5E6CC'],[11,7,'#D4A574'],
+      [6,8,'#D4A574'],[7,8,'#F5E6CC'],[8,8,'#F5E6CC'],[9,8,'#FFFFFF'],[10,8,'#F5E6CC'],[11,8,'#D4A574'],
+      [7,9,'#D4A574'],[8,9,'#D4A574'],[9,9,'#D4A574'],[10,9,'#D4A574'],
+      [7,10,'#F5E6CC'],[8,10,'#F5E6CC'],[9,10,'#F5E6CC'],[10,10,'#F5E6CC'],
+    ]
+  },
+];
+
+const PALETTE = [
+  '#333333','#555555','#808080','#A0A0A0','#D0D0D0',
+  '#FFFFFF','#F5E6CC','#FFE4C4','#DEB887','#D4A574',
+  '#C4956A','#B8925E','#A07850','#C4A484','#B49474',
+  '#947444','#A48464','#FF9999','#FF8C00','#FFD700',
+  '#FFE066','#E57373','#81C784','#FFB74D','#228B22',
+  '#32CD32','#90C695','#70A675','#87CEEB','#5FB3D4',
+  '#6495ED','#4169E1','#0f3460','#FFF8DC',
+];
+
+const CELL_SIZE = 16;
+const SPREAD = 1.5;
+
+createApp({
+  data() {
+    return {
+      cats: JSON.parse(JSON.stringify(INITIAL_CATS)),
+      selectedIdx: 0,
+      tool: 'paint',       // 'paint' | 'erase'
+      currentColor: '#D4A574',
+      customColor: '#D4A574',
+      palette: PALETTE,
+      isDrawing: false,
+      history: [],
+      redoStack: [],
+      gridW: 16,
+      gridH: 16,
+      offsetCol: 0,
+      offsetRow: 0,
+    };
+  },
+
+  computed: {
+    currentCat() { return this.cats[this.selectedIdx]; },
+    currentPixels() { return this.currentCat ? this.currentCat.pixels : []; },
+
+    pixelMap() {
+      const map = new Map();
+      for (const [col, row, color] of this.currentPixels) {
+        map.set(`${col},${row}`, color);
+      }
+      return map;
+    },
+
+    codeOutput() {
+      if (!this.currentPixels.length) return '// empty';
+      const lines = this.currentPixels.map(([c,r,col]) => `      [${c},${r},'${col}'],`);
+      return '[\n' + lines.join('\n') + '\n    ]';
+    },
+  },
+
+  watch: {
+    selectedIdx() { this.recalcGrid(); this.renderGrid(); this.updatePreview(); this.saveHistory(); },
+    currentPixels() { nextTick(() => this.updatePreview()); this.updateCode(); },
+  },
+
+  mounted() {
+    this.recalcGrid();
+    this.renderGrid();
+    this.updatePreview();
+    this.saveHistory();
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); this.undoLast(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); this.redoNext(); }
+    });
+  },
+
+  methods: {
+    recalcGrid() {
+      let minC = 0, maxC = 0, minR = 0, maxR = 0;
+      for (const [c, r] of this.currentPixels) {
+        if (c < minC) minC = c; if (c > maxC) maxC = c;
+        if (r < minR) minR = r; if (r > maxR) maxR = r;
+      }
+      const pad = 2;
+      this.offsetCol = minC - pad;
+      this.offsetRow = minR - pad;
+      this.gridW = Math.max(maxC - minC + 1 + pad * 2, 10);
+      this.gridH = Math.max(maxR - minR + 1 + pad * 2, 10);
+    },
+
+    renderGrid() {
+      const grid = document.getElementById('pixelGrid');
+      grid.style.gridTemplateColumns = `repeat(${this.gridW}, ${CELL_SIZE}px)`;
+      grid.innerHTML = '';
+      for (let r = 0; r < this.gridH; r++) {
+        for (let c = 0; c < this.gridW; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'grid-cell';
+          const absC = c + this.offsetCol;
+          const absR = r + this.offsetRow;
+          cell.dataset.col = absC;
+          cell.dataset.row = absR;
+
+          const color = this.pixelMap.get(`${absC},${absR}`);
+          if (color) cell.style.backgroundColor = color;
+          else cell.style.backgroundColor = '#222';
+
+          cell.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.isDrawing = true;
+            if (e.button === 2) this.doErase(absC, absR);
+            else this.doPaint(absC, absR);
+          });
+          cell.addEventListener('mouseenter', () => {
+            if (!this.isDrawing) return;
+            if (this.tool === 'erase' || (this.isDrawing && e?.button === 2)) this.doErase(absC, absR);
+            else this.doPaint(absC, absR);
+          });
+
+          cell.addEventListener('contextmenu', (e) => e.preventDefault());
+          grid.appendChild(cell);
+        }
+      }
+      document.addEventListener('mouseup', () => { this.isDrawing = false; });
+    },
+
+    doPaint(col, row) {
+      if (this.tool === 'erase') { this.doErase(col, row); return; }
+      const key = `${col},${row}`;
+      const existing = this.pixelMap.get(key);
+      if (existing === this.currentColor) return;
+      this.saveHistory();
+      if (existing !== undefined) {
+        const idx = this.currentPixels.findIndex(p => p[0] === col && p[1] === row);
+        if (idx >= 0) this.currentPixels.splice(idx, 1, [col, row, this.currentColor]);
+      } else {
+        this.currentPixels.push([col, row, this.currentColor]);
+      }
+      this.refreshCell(col, row);
+      this.redoStack = [];
+    },
+
+    doErase(col, row) {
+      const idx = this.currentPixels.findIndex(p => p[0] === col && p[1] === row);
+      if (idx < 0) return;
+      this.saveHistory();
+      this.currentPixels.splice(idx, 1);
+      this.refreshCell(col, row);
+      this.redoStack = [];
+    },
+
+    refreshCell(col, row) {
+      const c = col - this.offsetCol;
+      const r = row - this.offsetRow;
+      const cells = document.querySelectorAll('.grid-cell');
+      if (cells && cells[r * this.gridW + c]) {
+        const el = cells[r * this.gridW + c];
+        const color = this.pixelMap.get(`${col},${row}`);
+        el.style.backgroundColor = color || '#222';
+      }
+    },
+
+    updateCode() {
+      const el = document.getElementById('codeOutput');
+      if (el) el.textContent = this.codeOutput;
+    },
+
+    updatePreview() {
+      const preview = document.getElementById('livePreview');
+      if (!preview || !this.currentPixels.length) return;
+
+      let minC = 0, maxC = 0, maxR = 0;
+      for (const [c, r] of this.currentPixels) {
+        if (c < minC) minC = c; if (c > maxC) maxC = c;
+        if (r > maxR) maxR = r;
+      }
+      const w = (maxC - minC + 1) * 4 + 3;
+      const h = (maxR + 1) * 4 + 3;
+      const ox = -minC * 4;
+
+      const shadow = this.currentPixels.map(([c, r, col]) =>
+        `${c * 4}px ${r * 4}px 0 ${SPREAD}px ${col}`
+      ).join(', ');
+
+      preview.style.width = w + 'px';
+      preview.style.height = h + 'px';
+
+      let dot = preview.querySelector('.preview-dot');
+      if (!dot) {
+        dot = document.createElement('div');
+        dot.className = 'preview-dot';
+        preview.appendChild(dot);
+      }
+      dot.style.top = SPREAD + 'px';
+      dot.style.left = (ox + SPREAD) + 'px';
+      dot.style.boxShadow = shadow;
+    },
+
+    selectCat(i) { this.selectedIdx = i; },
+    setTool(t) { this.tool = t; },
+    setColor(c) { this.currentColor = c; this.customColor = c; this.tool = 'paint'; },
+
+    fillBg(color) {
+      this.saveHistory();
+      for (let c = this.offsetCol; c < this.offsetCol + this.gridW; c++)
+        for (let r = this.offsetRow; r < this.offsetRow + this.gridH; r++)
+          this.currentPixels.push([c, r, color]);
+      this.redoStack = [];
+      this.recalcGrid();
+      this.renderGrid();
+    },
+
+    clearCanvas() {
+      this.saveHistory();
+      this.currentPixels.length = 0;
+      this.redoStack = [];
+      this.recalcGrid();
+      this.renderGrid();
+    },
+
+    saveHistory() {
+      this.history.push(JSON.parse(JSON.stringify(this.currentPixels)));
+      if (this.history.length > 50) this.history.shift();
+      this.redoStack = [];
+    },
+
+    undoLast() {
+      if (!this.history.length) return;
+      this.redoStack.push(JSON.parse(JSON.stringify(this.currentPixels)));
+      const prev = this.history.pop();
+      this.cats[this.selectedIdx].pixels = prev;
+      this.recalcGrid();
+      this.renderGrid();
+      this.updatePreview();
+    },
+
+    redoNext() {
+      if (!this.redoStack.length) return;
+      this.history.push(JSON.parse(JSON.stringify(this.currentPixels)));
+      const next = this.redoStack.pop();
+      this.cats[this.selectedIdx].pixels = next;
+      this.recalcGrid();
+      this.renderGrid();
+      this.updatePreview();
+    },
+
+    exportCurrent() {
+      navigator.clipboard.writeText(this.codeOutput).then(() => showToast('已复制到剪贴板'));
+    },
+
+    exportAll() {
+      const lines = this.cats.map((cat, i) => {
+        const px = cat.pixels.map(([c,r,col]) => `[${c},${r},'${col}']`).join(', ');
+        return `  // ${cat.name}\n  {\n    name: '${cat.name}',\n    pixels: [${px}],\n  },`;
+      }).join('\n\n');
+      const full = `// ─── ALL CATS ───\n${lines}\n`;
+      console.log(full);
+      navigator.clipboard.writeText(full).then(() => showToast('全部代码已复制！请粘贴替换 PixelCat.tsx 中的 CATS 数组'));
+    },
+
+    previewSize(idx) {
+      let minC = 0, maxC = 0, maxR = 0;
+      for (const [c, r] of this.cats[idx].pixels) {
+        if (c < minC) minC = c; if (c > maxC) maxC = c;
+        if (r > maxR) maxR = r;
+      }
+      return { width: (maxC - minC + 1) * 2 + 4 + 'px', height: (maxR + 1) * 2 + 4 + 'px' };
+    },
+  },
+}).mount('main');
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+
+</body>
+</html>

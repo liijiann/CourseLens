@@ -1,12 +1,15 @@
 ﻿import { useRef, useMemo } from 'react';
+import { Link2, RefreshCw } from 'lucide-react';
 
 import MarkdownText from '@/components/MarkdownText';
+import PixelCat from '@/components/PixelCat';
 import SelectionAskButton from '@/components/SelectionAskButton';
 import { BubbleStyle } from '@/hooks/useBubbleStyle';
 import { markdownFontClass, ReadingFontSize } from '@/lib/readingFontSize';
 import { ChatTurn, FrontendPageStatus } from '@/lib/types';
 
 interface ExplanationPanelProps {
+  sessionId: string;
   pageNumber: number;
   status: FrontendPageStatus;
   explanation: string;
@@ -18,6 +21,8 @@ interface ExplanationPanelProps {
   bubbleStyle: BubbleStyle;
   fontSize: ReadingFontSize;
   onRetry: () => void;
+  onRegenerate: () => void;
+  onRegenerateWithContext: () => void;
   onQuickAsk: (message: string) => void;
   onAbort: () => void;
 }
@@ -32,6 +37,7 @@ function splitExplanationBlocks(explanation: string): string[] {
 }
 
 export default function ExplanationPanel({
+  sessionId,
   pageNumber,
   status,
   explanation,
@@ -43,6 +49,8 @@ export default function ExplanationPanel({
   bubbleStyle,
   fontSize,
   onRetry,
+  onRegenerate,
+  onRegenerateWithContext,
   onQuickAsk,
   onAbort,
 }: ExplanationPanelProps) {
@@ -65,7 +73,7 @@ export default function ExplanationPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[var(--dark-surface)] p-3">
-      <div ref={containerRef} className="scrollbar-thin flex-1 overflow-auto">
+      <div ref={containerRef} className="selection-highlight-host scrollbar-thin relative flex-1 overflow-auto">
         {status === 'error' ? (
           <div className="space-y-3">
             <p className={`${textClass} text-warn`}>生成失败：{error || '未知错误'}</p>
@@ -99,7 +107,9 @@ export default function ExplanationPanel({
             <span className="ml-1 inline-block animate-pulse text-gray-900 dark:text-gray-300">▋</span>
           </article>
         ) : (
-          <p className={`${textClass} text-slate-500 dark:text-[var(--dark-muted)]`}>等待解读中...</p>
+          <div className="flex flex-col items-center justify-center pt-8">
+            <PixelCat key={`${sessionId}-${pageNumber}`} />
+          </div>
         )}
       </div>
 
@@ -115,6 +125,30 @@ export default function ExplanationPanel({
         onQuickAsk={onQuickAsk}
         onAbort={onAbort}
       />
+
+      {status !== 'loading' && (
+        <div className="flex shrink-0 gap-1 px-2 pb-1">
+          <button
+            type="button"
+            onClick={onRegenerate}
+            title="重新生成解读"
+            className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-[var(--dark-muted)] dark:hover:bg-[var(--dark-surface-elev)] dark:hover:text-[var(--dark-text)]"
+          >
+            <RefreshCw size={11} />
+            重新生成
+          </button>
+          <button
+            type="button"
+            onClick={onRegenerateWithContext}
+            disabled={pageNumber <= 1}
+            title={pageNumber <= 1 ? '第一页无上一页可串联' : '结合上一页内容重新生成'}
+            className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30 dark:text-[var(--dark-muted)] dark:hover:bg-[var(--dark-surface-elev)] dark:hover:text-[var(--dark-text)]"
+          >
+            <Link2 size={11} />
+            串联上下文
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ export type BubbleStyle = 'glass' | 'classic';
 const KEY = 'courselens:bubbleStyle';
 
 export function useBubbleStyle() {
-  const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>('classic');
+  const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>('glass');
 
   useEffect(() => {
     const saved = localStorage.getItem(KEY) as BubbleStyle | null;

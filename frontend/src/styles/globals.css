@@ -4,6 +4,7 @@
 
 :root {
   color-scheme: light;
+  --skeleton-bg: #e2e8f0;
   --dark-bg: #1A1A1B;
   --dark-surface: #232324;
   --dark-surface-elev: #2c2c2e;
@@ -13,10 +14,31 @@
   --dark-button-bg: #232324;
   --dark-button-hover: #2c2c2e;
   --dark-disabled: #3A3A3C;
+
+  /* Warm 橙黄主题 */
+  --warm-bg: #FAF9F7;
+  --warm-surface: #F5F3EF;
+  --warm-surface-elev: #EDE9E3;
+  --warm-border: #E2DDD6;
+  --warm-text: #1A1714;
+  --warm-muted: #7C7268;
+  --warm-accent: #A8763E;
+  --warm-accent-hover: #8C5E2A;
+  --warm-accent-text: #ffffff;
+  --warm-accent-subtle: #FEF3C7;
+  --warm-accent-subtle-text: #92400E;
+  /* 分段按钮：未选中填充色（比背景稍深） */
+  --warm-segment: #F0ECE6;
 }
 
 html.dark {
   color-scheme: dark;
+  --skeleton-bg: var(--dark-surface);
+}
+
+html.warm {
+  color-scheme: light;
+  --skeleton-bg: var(--warm-surface);
 }
 
 * {
@@ -41,6 +63,11 @@ body {
 .dark body {
   background: var(--dark-bg);
   color: var(--dark-text);
+}
+
+.warm body {
+  background: var(--warm-bg);
+  color: var(--warm-text);
 }
 
 @keyframes scale-in {
@@ -69,6 +96,22 @@ body {
 
 .bubble-fade-in {
   animation: bubble-in 220ms ease-out both;
+}
+
+/* PDF page fade-in on page change */
+@keyframes pdf-page-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pdf-page-fadein {
+  animation: pdf-page-in 180ms ease-out both;
+}
+
+/* PDF container smooth scale when sidebar opens/closes */
+.pdf-tone {
+  transition: transform 200ms ease;
+  background-color: var(--skeleton-bg);
 }
 
 .markdown-body p {
@@ -195,18 +238,38 @@ body {
   color: var(--dark-text);
 }
 
+.warm .markdown-body h1,
+.warm .markdown-body h2,
+.warm .markdown-body h3 {
+  color: var(--warm-text);
+}
+
 .dark .markdown-body p,
 .dark .markdown-body li {
   color: #C7C7C9;
+}
+
+.warm .markdown-body p,
+.warm .markdown-body li {
+  color: #3D3530;
 }
 
 .dark .markdown-body strong {
   color: var(--dark-text);
 }
 
+.warm .markdown-body strong {
+  color: var(--warm-text);
+}
+
 .dark .markdown-body code {
   background: var(--dark-surface-elev);
   color: var(--dark-text);
+}
+
+.warm .markdown-body code {
+  background: var(--warm-surface-elev);
+  color: var(--warm-text);
 }
 
 .dark .markdown-body pre {
@@ -215,14 +278,33 @@ body {
   color: #d8dee8;
 }
 
+.warm .markdown-body pre {
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-border);
+  color: var(--warm-text);
+}
+
 .dark .markdown-body .katex {
   background: var(--dark-surface-elev);
 }
 
-/* PDF dark eye-care filter */
-.dark .pdf-tone canvas {
+.warm .markdown-body .katex {
+  background: var(--warm-surface-elev);
+}
+
+/* PDF dark eye-care filter — container must be white so invert works correctly */
+.dark .pdf-tone {
+  background-color: white !important;
+}
+
+.dark .pdf-tone .react-pdf__Page__canvas {
   filter: invert(1) hue-rotate(180deg);
-  background-color: white; 
+  background-color: white;
+}
+
+/* PDF warm tone filter */
+html.warm .pdf-tone .react-pdf__Page__canvas {
+  filter: sepia(15%) brightness(0.97);
 }
 
 /* Scrollbar */
@@ -259,6 +341,18 @@ body {
   scrollbar-color: rgba(230, 237, 243, 0.3) transparent;
 }
 
+.warm .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--warm-border);
+}
+
+.warm .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--warm-muted);
+}
+
+.warm .scrollbar-thin {
+  scrollbar-color: var(--warm-border) transparent;
+}
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -266,4 +360,182 @@ body {
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Explanation selection style */
+.selection-highlight-host ::selection {
+  background: rgba(148, 163, 184, 0.25);
+  color: inherit;
+}
+
+.selection-highlight-host ::-moz-selection {
+  background: rgba(148, 163, 184, 0.25);
+  color: inherit;
+}
+
+.dark .selection-highlight-host ::selection {
+  background: rgba(148, 163, 184, 0.18);
+  color: inherit;
+}
+
+.dark .selection-highlight-host ::-moz-selection {
+  background: rgba(148, 163, 184, 0.18);
+  color: inherit;
+}
+
+.warm .selection-highlight-host ::selection {
+  background: rgba(217, 119, 6, 0.18);
+  color: inherit;
+}
+
+.warm .selection-highlight-host ::-moz-selection {
+  background: rgba(217, 119, 6, 0.18);
+  color: inherit;
+}
+
+/* Warm 主题：分段按钮（选中纯白 + 未选米黄） */
+html.warm .bg-gray-900 {
+  background-color: #ffffff !important;
+  color: var(--warm-text) !important;
+}
+
+html.warm .bg-gray-900:hover,
+html.warm .hover\:bg-black:hover {
+  background-color: #f5f5f5 !important;
+}
+
+html.warm .bg-slate-800 {
+  background-color: #ffffff !important;
+  color: var(--warm-text) !important;
+}
+
+/* Warm 主题：仅修复被改为白底按钮里的浅色文字，避免“白底白字” */
+html.warm .bg-gray-900 .text-white,
+html.warm .bg-slate-800 .text-white {
+  color: var(--warm-text) !important;
+}
+
+html.warm .bg-gray-900 .text-white\/70,
+html.warm .bg-slate-800 .text-white\/70 {
+  color: color-mix(in srgb, var(--warm-text) 70%, transparent) !important;
+}
+
+html.warm .bg-gray-900 .text-gray-300,
+html.warm .bg-gray-900 .text-gray-400,
+html.warm .bg-slate-800 .text-gray-300,
+html.warm .bg-slate-800 .text-gray-400 {
+  color: var(--warm-muted) !important;
+}
+
+/* Warm 主题：分段按钮未选中态 */
+html.warm .text-gray-700 {
+  color: var(--warm-muted) !important;
+}
+
+/* Warm 主题：分段控制器外层容器（药丸形边框） */
+html.warm .segmented-control {
+  background-color: var(--warm-segment);
+  border: 1px solid var(--warm-border);
+  border-radius: 12px;
+  padding: 3px;
+}
+
+html.warm .segmented-control > button {
+  border-radius: 9px !important;
+}
+
+html.warm .hover\:bg-gray-100:hover {
+  background-color: var(--warm-segment) !important;
+}
+
+/* Warm 主题：背景与边框 */
+html.warm .bg-white {
+  background-color: var(--warm-bg) !important;
+}
+
+html.warm .bg-white\/75 {
+  background-color: color-mix(in srgb, var(--warm-bg) 75%, transparent) !important;
+}
+
+html.warm .border-slate-100 {
+  border-color: var(--warm-border) !important;
+}
+
+/* Cat toy animations */
+@keyframes cat-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.05); }
+}
+
+@keyframes cat-combo {
+  0%   { transform: scale(0.75) rotate(var(--cat-rot, 5deg)); }
+  20%  { transform: scale(0.85) rotate(calc(var(--cat-rot, 5deg) * -1)); }
+  40%  { transform: scale(0.78) rotate(var(--cat-rot, 5deg)); }
+  60%  { transform: scale(0.88) rotate(calc(var(--cat-rot, 5deg) * -0.5)); }
+  80%  { transform: scale(0.95) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.cat-breathe > div {
+  animation: cat-breathe 3s ease-in-out infinite;
+}
+
+.cat-combo > div {
+  animation: cat-combo 500ms ease-out forwards;
+}
+
+@keyframes cat-heart {
+  0%   { transform: translate(-50%, -50%) translate(0, 0) scale(1);   opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(0.4); opacity: 0; }
+}
+
+@keyframes reminder-fadein {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes reminder-fadeout {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(6px); }
+}
+.reminder-cat-fadein  { animation: reminder-fadein  300ms ease-out forwards; }
+.reminder-cat-fadeout { animation: reminder-fadeout 400ms ease-in  forwards; }
+
+:root {
+  --reminder-bubble-bg: #fff;
+  --reminder-bubble-border: #e2e8f0;
+  --reminder-bubble-text: #475569;
+}
+html.dark {
+  --reminder-bubble-bg: var(--dark-surface);
+  --reminder-bubble-border: var(--dark-border);
+  --reminder-bubble-text: var(--dark-muted);
+}
+html.warm {
+  --reminder-bubble-bg: var(--warm-surface);
+  --reminder-bubble-border: var(--warm-border);
+  --reminder-bubble-text: var(--warm-text);
+}
+html.warm .send-btn:disabled {
+  background-color: var(--warm-surface-elev) !important;
+  border: 1px solid var(--warm-border) !important;
+}
+
+html.warm .border-slate-200 {
+  border-color: var(--warm-border) !important;
+}
+
+html.warm .text-slate-800 {
+  color: var(--warm-text) !important;
+}
+
+html.warm .text-slate-500 {
+  color: var(--warm-muted) !important;
+}
+
+html.warm .text-slate-600 {
+  color: var(--warm-muted) !important;
+}
+
+html.warm .hover\:bg-slate-100:hover {
+  background-color: var(--warm-surface-elev) !important;
 }

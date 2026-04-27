@@ -24,6 +24,8 @@ export function useChatStream({
   const chatAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    chatAbortRef.current?.abort();
+    chatAbortRef.current = null;
     setChatInput('');
     setChatDraftAnswer('');
     setChatSending(false);
