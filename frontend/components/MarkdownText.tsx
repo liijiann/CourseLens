@@ -1,4 +1,5 @@
-﻿import ReactMarkdown from 'react-markdown';
+﻿import { memo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -8,12 +9,15 @@ interface MarkdownTextProps {
   className?: string;
 }
 
-export default function MarkdownText({ content, className = '' }: MarkdownTextProps) {
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REHYPE_PLUGINS = [rehypeKatex];
+
+function MarkdownText({ content, className = '' }: MarkdownTextProps) {
   return (
     <div className={`markdown-body break-words ${className}`.trim()}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={REHYPE_PLUGINS}
         skipHtml
       >
         {content}
@@ -21,3 +25,5 @@ export default function MarkdownText({ content, className = '' }: MarkdownTextPr
     </div>
   );
 }
+
+export default memo(MarkdownText);

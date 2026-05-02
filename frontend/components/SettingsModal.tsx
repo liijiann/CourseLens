@@ -1,14 +1,16 @@
 ﻿import { Eye, EyeOff, X } from 'lucide-react';
 import { useState } from 'react';
 
-import { getStoredApiKey, setStoredApiKey } from '@/lib/api';
 import { BubbleStyle } from '@/hooks/useBubbleStyle';
+import { getStoredApiKey, setStoredApiKey } from '@/lib/api';
 import { MODELS } from '@/lib/models';
 
 interface SettingsModalProps {
   onClose: () => void;
   bubbleStyle: BubbleStyle;
   onBubbleStyleChange: (style: BubbleStyle) => void;
+  isAdmin?: boolean;
+  onGoAdmin?: () => void;
 }
 
 const API_KEY_CONFIGS = [
@@ -20,15 +22,38 @@ const API_KEY_CONFIGS = [
   },
 ];
 
-export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: SettingsModalProps) {
+export function SettingsModal({
+  onClose,
+  bubbleStyle,
+  onBubbleStyleChange,
+  isAdmin = false,
+  onGoAdmin,
+}: SettingsModalProps) {
   const [keys, setKeys] = useState({
-    dashscope: getStoredApiKey('qwen3.6-flash'),
+    dashscope: getStoredApiKey('dashscope'),
   });
   const [visible, setVisible] = useState({ dashscope: false });
   const [saved, setSaved] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState('');
+
+  function validateApiKey(rawValue: string): string {
+    const value = rawValue.trim();
+    if (!value) return '请先填写 API Key';
+    if (/\s/.test(value)) return 'API Key 不能包含空格';
+    if (value.length < 16) return 'API Key 格式可能不正确，请检查后重试';
+    return '';
+  }
 
   function handleSave() {
-    setStoredApiKey('dashscope', keys.dashscope);
+    const validationError = validateApiKey(keys.dashscope);
+    if (validationError) {
+      setApiKeyError(validationError);
+      setSaved(false);
+      return;
+    }
+
+    setStoredApiKey('dashscope', keys.dashscope.trim());
+    setApiKeyError('');
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -36,7 +61,7 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative flex w-[480px] flex-col rounded-2xl bg-white shadow-2xl dark:bg-[var(--dark-surface)] dark:shadow-[0_30px_90px_rgba(0,0,0,0.62)]">
-        <div className="flex items-center justify-between px-8 pt-8 pb-4">
+        <div className="flex items-center justify-between px-8 pb-4 pt-8">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-[var(--dark-text)]">设置</h2>
           <button
             onClick={onClose}
@@ -46,11 +71,30 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
           </button>
         </div>
 
-        <div className="px-8 pb-8 space-y-6">
+        <div className="space-y-6 px-8 pb-8">
+          {isAdmin && onGoAdmin && (
+            <section>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">管理</h3>
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-[var(--dark-border)] dark:bg-[var(--dark-surface-elev)]">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-[var(--dark-text)]">管理后台</span>
+                  <span className="rounded-full border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700 dark:border-amber-300/50 dark:bg-amber-300/10 dark:text-amber-200">
+                    ADMIN
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onGoAdmin}
+                  className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 transition hover:bg-slate-100 dark:border-[var(--dark-border)] dark:bg-[var(--dark-surface)] dark:text-[var(--dark-text)] dark:hover:bg-[var(--dark-surface-elev)]"
+                >
+                  前往
+                </button>
+              </div>
+            </section>
+          )}
+
           <section>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              气泡风格
-            </h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">气泡风格</h3>
             <div className="flex gap-2">
               {([
                 { value: 'glass', label: '毛玻璃', desc: '半透明背景' },
@@ -67,16 +111,16 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
                   }`}
                 >
                   <p className="text-sm font-medium">{opt.label}</p>
-                  <p className={`mt-0.5 text-xs ${bubbleStyle === opt.value ? 'text-white/70' : 'text-slate-400 dark:text-[var(--dark-muted)]'}`}>{opt.desc}</p>
+                  <p className={`mt-0.5 text-xs ${bubbleStyle === opt.value ? 'text-white/70' : 'text-slate-400 dark:text-[var(--dark-muted)]'}`}>
+                    {opt.desc}
+                  </p>
                 </button>
               ))}
             </div>
           </section>
 
           <section>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              可用模型
-            </h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">可用模型</h3>
             <div className="space-y-2">
               {MODELS.map((model) => (
                 <div
@@ -94,22 +138,21 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
           </section>
 
           <section>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              API Key
-            </h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">API Key</h3>
             <div className="space-y-3">
               {API_KEY_CONFIGS.map((cfg) => (
                 <div key={cfg.id}>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-[var(--dark-text)]">
-                    {cfg.label}
-                  </label>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-[var(--dark-text)]">{cfg.label}</label>
                   <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-[var(--dark-border)] dark:bg-[var(--dark-surface-elev)]">
                     <input
                       type={visible[cfg.id] ? 'text' : 'password'}
                       value={keys[cfg.id]}
-                      onChange={(e) => setKeys((prev) => ({ ...prev, [cfg.id]: e.target.value }))}
+                      onChange={(e) => {
+                        setKeys((prev) => ({ ...prev, [cfg.id]: e.target.value }));
+                        if (apiKeyError) setApiKeyError('');
+                      }}
                       placeholder={cfg.placeholder}
-                      className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-300 outline-none dark:text-[var(--dark-text)] dark:placeholder-[var(--dark-muted)]"
+                      className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-300 dark:text-[var(--dark-text)] dark:placeholder-[var(--dark-muted)]"
                     />
                     <button
                       type="button"
@@ -123,9 +166,8 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-slate-400 dark:text-[var(--dark-muted)]">
-              Key 仅保存在本地浏览器，不会上传服务器。
-            </p>
+            {apiKeyError && <p className="mt-2 text-xs text-rose-500">{apiKeyError}</p>}
+            <p className="mt-3 text-xs text-slate-400 dark:text-[var(--dark-muted)]">Key 仅保存在本地浏览器，不会上传服务器。</p>
           </section>
 
           <div className="flex items-center justify-between">
@@ -137,12 +179,12 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
               title="GitHub"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
               </svg>
             </a>
             <button
               onClick={handleSave}
-              className="rounded-xl bg-slate-800 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-700 dark:bg-[var(--dark-accent)] dark:hover:opacity-90"
+              className="settings-save-btn rounded-xl bg-slate-800 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-700 dark:bg-[var(--dark-accent)] dark:hover:opacity-90"
             >
               {saved ? '已保存' : '保存'}
             </button>
@@ -152,4 +194,3 @@ export function SettingsModal({ onClose, bubbleStyle, onBubbleStyleChange }: Set
     </div>
   );
 }
-

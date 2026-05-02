@@ -100,12 +100,19 @@ body {
 
 /* PDF page fade-in on page change */
 @keyframes pdf-page-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+    transform: scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .pdf-page-fadein {
-  animation: pdf-page-in 180ms ease-out both;
+  transform-origin: center center;
+  animation: pdf-page-in 110ms ease-out both;
 }
 
 /* PDF container smooth scale when sidebar opens/closes */
@@ -395,18 +402,20 @@ html.warm .pdf-tone .react-pdf__Page__canvas {
 
 /* Warm 主题：分段按钮（选中纯白 + 未选米黄） */
 html.warm .bg-gray-900 {
-  background-color: #ffffff !important;
+  background-color: var(--warm-surface-elev) !important;
   color: var(--warm-text) !important;
+  border: 1px solid var(--warm-border) !important;
 }
 
 html.warm .bg-gray-900:hover,
 html.warm .hover\:bg-black:hover {
-  background-color: #f5f5f5 !important;
+  background-color: var(--warm-segment) !important;
 }
 
 html.warm .bg-slate-800 {
-  background-color: #ffffff !important;
+  background-color: var(--warm-surface-elev) !important;
   color: var(--warm-text) !important;
+  border: 1px solid var(--warm-border) !important;
 }
 
 /* Warm 主题：仅修复被改为白底按钮里的浅色文字，避免“白底白字” */
@@ -442,6 +451,17 @@ html.warm .segmented-control {
 
 html.warm .segmented-control > button {
   border-radius: 9px !important;
+}
+
+/* Warm 主题特例：学习页“解读/追问”选中态使用纯白底色 */
+html.warm .segmented-control > button.bg-gray-900 {
+  background-color: #ffffff !important;
+  color: var(--warm-text) !important;
+  border: 1px solid var(--warm-border) !important;
+}
+
+html.warm .segmented-control > button.bg-gray-900:hover {
+  background-color: #ffffff !important;
 }
 
 html.warm .hover\:bg-gray-100:hover {
@@ -538,4 +558,56 @@ html.warm .text-slate-600 {
 
 html.warm .hover\:bg-slate-100:hover {
   background-color: var(--warm-surface-elev) !important;
+}
+
+/* Warm 主题：首页上传按钮使用更深米白，避免纯白对比不足 */
+html.warm .home-upload-btn {
+  background-color: var(--warm-segment) !important;
+  color: var(--warm-text) !important;
+  border: 1px solid var(--warm-border) !important;
+}
+
+html.warm .home-upload-btn:hover {
+  background-color: var(--warm-surface-elev) !important;
+}
+
+/* Warm 主题：管理员页面跟随暖色体系 */
+html.warm .admin-page {
+  background-color: var(--warm-bg) !important;
+  color: var(--warm-text);
+}
+
+html.warm .admin-page .admin-card {
+  background-color: var(--warm-surface) !important;
+  border-color: var(--warm-border) !important;
+}
+
+html.warm .admin-page .admin-table-head {
+  background-color: var(--warm-surface-elev) !important;
+  color: var(--warm-muted) !important;
+}
+
+html.warm .admin-page .admin-divider {
+  border-color: var(--warm-border) !important;
+}
+
+html.warm .admin-page .bg-slate-50 {
+  background-color: var(--warm-surface-elev) !important;
+}
+
+html.warm .admin-page .text-slate-700 {
+  color: var(--warm-text) !important;
+}
+
+/* Warm theme: specific button tone overrides */
+html.warm .study-upload-btn,
+html.warm .settings-save-btn {
+  background-color: var(--warm-surface-elev) !important;
+  color: var(--warm-text) !important;
+  border: 1px solid var(--warm-border) !important;
+}
+
+html.warm .study-upload-btn:hover,
+html.warm .settings-save-btn:hover {
+  background-color: var(--warm-segment) !important;
 }

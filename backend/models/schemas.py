@@ -21,12 +21,15 @@ class SessionMeta(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=2000)
+    message: str = Field(default='', max_length=2000)
+    images: list[str] = Field(default_factory=list, max_length=3)
+    model: str | None = None
 
 
 class ChatTurn(BaseModel):
     role: ChatRole
     content: str
+    images: list[str] = Field(default_factory=list, max_length=3)
 
 
 class SessionPage(BaseModel):

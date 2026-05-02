@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { uploadPdf } from '@/lib/api';
+import { fetchSession, uploadPdf } from '@/lib/api';
 import { MODELS } from '@/lib/models';
 
 interface UploadModalProps {
@@ -11,6 +12,7 @@ interface UploadModalProps {
 
 export function UploadModal({ onClose }: UploadModalProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -46,6 +48,11 @@ export function UploadModal({ onClose }: UploadModalProps) {
     setError('');
     try {
       const result = await uploadPdf(file, model);
+      await queryClient.prefetchQuery({
+        queryKey: ['session', result.sessionId],
+        queryFn: () => fetchSession(result.sessionId),
+        staleTime: 10_000,
+      });
       onClose();
       navigate(`/study/${result.sessionId}`);
     } catch (err) {
@@ -139,5 +146,4 @@ export function UploadModal({ onClose }: UploadModalProps) {
     </div>
   );
 }
-
 

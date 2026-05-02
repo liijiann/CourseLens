@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pencil } from 'lucide-react';
+﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pencil, Search } from 'lucide-react';
 import { pdfjs, Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -7,17 +7,16 @@ import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 interface PDFViewerProps {
-  pdfUrl: string;
+  sessionId: string;
+  pdfUrl: string | { url: string; httpHeaders: Record<string, string> };
   pageNumber: number;
   totalPages: number;
   onPrev: () => void;
   onNext: () => void;
   onGoToPage: (page: number) => void;
-}
-
-interface BoxSize {
-  width: number;
-  height: number;
+  searchOpen: boolean;
+  onSearchToggle: () => void;
+  highlightQuery?: string;
 }
 
 interface NormalizedPoint {
@@ -32,18 +31,6 @@ interface DrawStroke {
   type: 'pen' | 'highlighter' | 'eraser' | 'line';
 }
 
-function PdfLoadingPlaceholder() {
-  return (
-    <div className="flex min-h-[320px] items-center justify-center px-6">
-      <div className="w-full max-w-[420px] space-y-3">
-        <div className="mx-auto h-3 w-32 animate-pulse rounded bg-slate-200 dark:bg-[var(--dark-surface-elev)]" />
-        <div className="h-3 w-full animate-pulse rounded bg-slate-200 dark:bg-[var(--dark-surface-elev)]" />
-        <div className="h-3 w-11/12 animate-pulse rounded bg-slate-200 dark:bg-[var(--dark-surface-elev)]" />
-        <div className="h-3 w-10/12 animate-pulse rounded bg-slate-200 dark:bg-[var(--dark-surface-elev)]" />
-      </div>
-    </div>
-  );
-}
 const MIN_RENDER_WIDTH = 320;
 const MIN_RENDER_HEIGHT = 220;
 const DEFAULT_PAGE_RATIO = 1.414; // A4 aspect ratio (width/height)
@@ -75,16 +62,23 @@ function computeRenderWidth(containerWidth: number): number {
 }
 
 function PDFViewer({
+  sessionId: _sessionId,
   pdfUrl,
   pageNumber,
   totalPages,
   onPrev,
   onNext,
   onGoToPage,
+  searchOpen,
+  onSearchToggle,
+  highlightQuery = '',
 }: PDFViewerProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const highlightCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pageProxyRef = useRef<any>(null);
+  const [pageRenderedAt, setPageRenderedAt] = useState(0);
 
   const [containerWidth, setContainerWidth] = useState(720);
   const [pageRatio, setPageRatio] = useState(DEFAULT_PAGE_RATIO);
@@ -106,10 +100,11 @@ function PDFViewer({
   const isDrawingRef = useRef(false);
   const activeStrokeRef = useRef<DrawStroke | null>(null);
   const scrollDirectionRef = useRef<'top' | 'bottom' | null>(null);
+  const drawRafRef = useRef<number | null>(null);
 
   const effectiveTotalPages = numPages ?? totalPages;
 
-  // Container resize — update containerWidth always; renderWidth only grows
+  // Container resize 鈥?update containerWidth always; renderWidth only grows
   useEffect(() => {
     const node = stageRef.current;
     if (!node) return;
@@ -143,7 +138,7 @@ function PDFViewer({
     () => Math.max(MIN_RENDER_HEIGHT, renderWidth / (pageRatio > 0 ? pageRatio : DEFAULT_PAGE_RATIO)),
     [renderWidth, pageRatio],
   );
-  // Visual height after CSS scale — used for layout placeholder
+  // Visual height after CSS scale 鈥?used for layout placeholder
   const scaledHeight = renderHeight * scale;
 
   // Scroll to correct position after page change
@@ -165,6 +160,7 @@ function PDFViewer({
     setDrawingMode(false);
     activeStrokeRef.current = null;
     isDrawingRef.current = false;
+    pageProxyRef.current = null;
   }, [pdfUrl]);
 
   useEffect(() => {
@@ -278,6 +274,14 @@ function PDFViewer({
     if (activeStrokeRef.current) drawStroke(ctx, activeStrokeRef.current, w, h);
   }, [drawStroke, pageNumber, strokesByPage]);
 
+  const scheduleRedraw = useCallback(() => {
+    if (drawRafRef.current !== null) return;
+    drawRafRef.current = requestAnimationFrame(() => {
+      drawRafRef.current = null;
+      redrawAnnotationLayer();
+    });
+  }, [redrawAnnotationLayer]);
+
   useEffect(() => {
     const canvas = annotationCanvasRef.current;
     if (!canvas) return;
@@ -292,8 +296,78 @@ function PDFViewer({
   }, [renderWidth, renderHeight, redrawAnnotationLayer]);
 
   useEffect(() => { redrawAnnotationLayer(); }, [redrawAnnotationLayer]);
-  useEffect(() => { activeStrokeRef.current = null; isDrawingRef.current = false; redrawAnnotationLayer(); }, [pageNumber, redrawAnnotationLayer]);
+  useEffect(() => { activeStrokeRef.current = null; isDrawingRef.current = false; redrawAnnotationLayer();
+    // clear highlight canvas on page flip — new highlights drawn after onRenderSuccess
+    const hc = highlightCanvasRef.current;
+    if (hc) { const ctx = hc.getContext('2d'); ctx?.clearRect(0, 0, hc.width, hc.height); }
+    pageProxyRef.current = null;
+  }, [pageNumber, redrawAnnotationLayer]);
   useEffect(() => { if (!drawingMode) { activeStrokeRef.current = null; isDrawingRef.current = false; redrawAnnotationLayer(); } }, [drawingMode, redrawAnnotationLayer]);
+  useEffect(() => () => {
+    if (drawRafRef.current !== null) {
+      cancelAnimationFrame(drawRafRef.current);
+      drawRafRef.current = null;
+    }
+  }, []);
+
+  // Sync highlight canvas size with annotation canvas
+  useEffect(() => {
+    const hc = highlightCanvasRef.current;
+    const ac = annotationCanvasRef.current;
+    if (!hc || !ac) return;
+    hc.style.width = ac.style.width;
+    hc.style.height = ac.style.height;
+    hc.width = ac.width;
+    hc.height = ac.height;
+  }, [renderWidth, renderHeight]);
+
+  // Draw highlights when query or page changes
+  useEffect(() => {
+    const canvas = highlightCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const query = highlightQuery.trim().toLowerCase();
+    if (!query || !pageProxyRef.current) return;
+
+    void (async () => {
+      try {
+        const page = pageProxyRef.current;
+        const viewport = page.getViewport({ scale: 1 });
+        const content = await page.getTextContent();
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        // renderWidth is the CSS pixel width; PDF viewport width is in PDF user space units
+        const pdfToCanvas = (renderWidth / viewport.width) * dpr;
+
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.45)';
+        ctx.beginPath();
+
+        for (const item of content.items as any[]) {
+          const str: string = item.str ?? '';
+          if (!str.toLowerCase().includes(query)) continue;
+
+          // item.transform = [scaleX, skewX, skewY, scaleY, tx, ty] in PDF user space
+          // PDF origin is bottom-left; canvas origin is top-left
+          const [, , , scaleY, tx, ty] = item.transform as number[];
+          const itemHeight = Math.abs(scaleY);
+          const itemWidth: number = item.width ?? 0;
+
+          const cx = tx * pdfToCanvas;
+          const cy = (viewport.height - ty) * pdfToCanvas;
+          const cw = itemWidth * pdfToCanvas;
+          const ch = itemHeight * pdfToCanvas;
+
+          ctx.rect(cx, cy - ch, cw, ch);
+        }
+
+        ctx.fill();
+      } catch {
+        // page not ready yet — silently skip
+      }
+    })();
+  }, [highlightQuery, pageRenderedAt, renderWidth]);
 
   const getNormalizedPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>): NormalizedPoint => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -314,8 +388,8 @@ function PDFViewer({
     };
     isDrawingRef.current = true;
     activeStrokeRef.current = stroke;
-    redrawAnnotationLayer();
-  }, [brushColor, brushSize, brushType, drawingMode, getBrushWidthRatio, getNormalizedPoint, redrawAnnotationLayer]);
+    scheduleRedraw();
+  }, [brushColor, brushSize, brushType, drawingMode, getBrushWidthRatio, getNormalizedPoint, scheduleRedraw]);
 
   const handleDrawPointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawingMode || !isDrawingRef.current || !activeStrokeRef.current) return;
@@ -327,7 +401,7 @@ function PDFViewer({
       active.points.push(point);
     }
     redrawAnnotationLayer();
-  }, [drawingMode, getNormalizedPoint, redrawAnnotationLayer]);
+  }, [drawingMode, getNormalizedPoint, scheduleRedraw]);
 
   const finishCurrentStroke = useCallback(() => {
     if (!isDrawingRef.current) return;
@@ -357,12 +431,29 @@ function PDFViewer({
 
   const hasCurrentPageStrokes = (strokesByPage[pageNumber]?.length ?? 0) > 0;
 
-  const eraserCursor = (() => {
-    const r = Math.round(BRUSH_SIZE_TO_PX[brushSize] * 3.2);
-    const size = (r + 2) * 2;
-    const c = r + 2;
-    const svg = `%3Csvg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'%3E%3Ccircle cx='${c}' cy='${c}' r='${r}' fill='none' stroke='%23475569' stroke-width='1.5'/%3E%3C/svg%3E`;
-    return `url("data:image/svg+xml,${svg}") ${c} ${c}, cell`;
+  const toolCursor = (() => {
+    if (!drawingMode) return 'default';
+    if (brushType === 'eraser') {
+      // 半径 = 线宽的一半，与实际擦除范围一致
+      const r = Math.max(3, Math.round((BRUSH_SIZE_TO_PX[brushSize] * 3.2) / 2));
+      const size = (r + 2) * 2;
+      const c = r + 2;
+      const svg = `%3Csvg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'%3E%3Ccircle cx='${c}' cy='${c}' r='${r}' fill='none' stroke='%23475569' stroke-width='1.5'/%3E%3C/svg%3E`;
+      return `url("data:image/svg+xml,${svg}") ${c} ${c}, cell`;
+    }
+    // 钢笔 / 荧光笔 / 直线：用实际笔刷颜色和大小
+    const typeFactor = brushType === 'highlighter' ? 2.8 : 1;
+    const r = Math.max(2, Math.round((BRUSH_SIZE_TO_PX[brushSize] * typeFactor) / 2));
+    const size = (r + 3) * 2;
+    const c = r + 3;
+    const hex = brushColor.replace('#', '');
+    const rr = parseInt(hex.slice(0, 2), 16);
+    const gg = parseInt(hex.slice(2, 4), 16);
+    const bb = parseInt(hex.slice(4, 6), 16);
+    const alpha = brushType === 'highlighter' ? 0.35 : 1;
+    const fill = `rgba(${rr},${gg},${bb},${alpha})`;
+    const svg = `%3Csvg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}' viewBox='0 0 ${size} ${size}'%3E%3Ccircle cx='${c}' cy='${c}' r='${r}' fill='${fill}'/%3E%3C/svg%3E`;
+    return `url("data:image/svg+xml,${svg}") ${c} ${c}, crosshair`;
   })();
 
   return (
@@ -384,7 +475,7 @@ function PDFViewer({
               transformOrigin: 'top left',
             }}
           >
-            {/* PDF 层：渲染完后叠在骨架屏（容器背景色）上方 */}
+            {/* PDF 层：渲染完成后叠在骨架屏（容器背景色）上方 */}
             <div className="relative z-10">
               <Document
                 file={pdfUrl}
@@ -392,6 +483,29 @@ function PDFViewer({
                 loading={null}
                 error={null}
               >
+                {/* 棰勬覆鏌撶浉閭婚〉锛屽埄鐢?pdfjs 缂撳瓨璁╃炕椤垫洿娴佺晠 */}
+                {pageNumber > 1 && (
+                  <div style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none' }}>
+                    <Page
+                      pageNumber={pageNumber - 1}
+                      width={renderWidth}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      loading={null}
+                    />
+                  </div>
+                )}
+                {pageNumber < effectiveTotalPages && (
+                  <div style={{ position: 'absolute', visibility: 'hidden', pointerEvents: 'none' }}>
+                    <Page
+                      pageNumber={pageNumber + 1}
+                      width={renderWidth}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      loading={null}
+                    />
+                  </div>
+                )}
                 <div key={pageNumber} className="pdf-page-fadein">
                   <Page
                     pageNumber={pageNumber}
@@ -400,14 +514,22 @@ function PDFViewer({
                     renderAnnotationLayer={false}
                     loading={null}
                     onRenderSuccess={(page) => {
+                      pageProxyRef.current = page;
                       const vp = (page as any).getViewport?.({ scale: 1 });
                       const w = vp?.width ?? (page as any).originalWidth;
                       const h = vp?.height ?? (page as any).originalHeight;
                       if (w && h && h > 0) setPageRatio(w / h);
+                      setPageRenderedAt(Date.now());
                     }}
                   />
                 </div>
               </Document>
+
+              <canvas
+                ref={highlightCanvasRef}
+                className="absolute inset-0"
+                style={{ width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none' }}
+              />
 
               <canvas
                 ref={annotationCanvasRef}
@@ -415,8 +537,7 @@ function PDFViewer({
                 style={{
                   width: '100%', height: '100%', zIndex: 2,
                   pointerEvents: drawingMode ? 'auto' : 'none',
-                  cursor: !drawingMode ? 'default' : brushType === 'eraser' ? eraserCursor
-                    : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2' fill='%23475569'/%3E%3C/svg%3E") 8 8, crosshair`,
+                  cursor: toolCursor,
                   touchAction: drawingMode ? 'none' : 'auto',
                 }}
                 onPointerDown={handleDrawPointerDown}
@@ -473,6 +594,16 @@ function PDFViewer({
           <button type="button" onClick={clearCurrentPageStrokes} disabled={!hasCurrentPageStrokes}
             className="rounded-full px-2.5 py-1 text-xs text-slate-700 transition-colors hover:bg-slate-100 dark:text-[var(--dark-text)] dark:hover:bg-[var(--dark-surface)] disabled:opacity-45">
             清空本页
+          </button>
+
+
+          <span className="mx-1 h-4 w-px bg-slate-200 dark:bg-[var(--dark-border)]" aria-hidden="true" />
+
+          <button type="button" onClick={onSearchToggle} title="搜索内容"
+            className={`rounded-full p-1.5 transition-colors ${searchOpen
+              ? 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-text)]'
+              : 'text-slate-700 hover:bg-slate-100 dark:text-[var(--dark-text)] dark:hover:bg-[var(--dark-surface)]'}`}>
+            <Search size={14} />
           </button>
         </div>
 

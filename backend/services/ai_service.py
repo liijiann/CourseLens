@@ -242,6 +242,8 @@ async def _stream_chat_completions(
                             response.raise_for_status()
                         except httpx.HTTPStatusError as exc:
                             await exc.response.aread()
+                            if exc.response.status_code in {401, 403}:
+                                raise AIServiceError('API Key 无效或已失效，请重新配置') from exc
                             detail = exc.response.text
                             should_retry = (
                                 not emitted
@@ -358,8 +360,9 @@ async def stream_chat_answer(
     *,
     page_number: int,
     explanation: str,
-    history: list[dict[str, str]],
+    history: list[dict[str, Any]],
     user_message: str,
+    user_images: list[str] | None = None,
     model: str,
     api_key_override: str | None = None,
 ) -> AsyncGenerator[str, None]:
@@ -375,20 +378,62 @@ async def stream_chat_answer(
         '3. 直接回答，不要废话\n'
         '4. 公式用文字解释\n'
         '5. 回答时禁止堆叠emoji\n'
-        '可用 Markdown：段落、列表、行内公式 $...$、块公式 $$...$$'
+        '可用 Markdown：段落、列表、行内公式 $...$、块公式 $$...$$\n'
+        '遇到复杂计算题，一步一步思考\n'
     )
 
     messages: list[dict[str, Any]] = [{'role': 'system', 'content': system_prompt}]
+
+    def normalize_image_to_data_url(image: str) -> str | None:
+        raw = image.strip()
+        if not raw:
+            return None
+        if raw.startswith('data:image/'):
+            return raw
+        return f'data:image/jpeg;base64,{raw}'
+
+    def build_user_content(text: str, images: list[str]) -> Any:
+        clean_text = text.strip()
+        clean_images = [item for item in images if item]
+        if not clean_images:
+            return clean_text
+
+        content: list[dict[str, Any]] = []
+        if clean_text:
+            content.append({'type': 'text', 'text': clean_text})
+        for image_url in clean_images:
+            content.append({'type': 'image_url', 'image_url': {'url': image_url}})
+        return content
     for turn in history:
         role = turn.get('role', 'user')
         content = turn.get('content', '')
+        has_valid_text = isinstance(content, str) and bool(content.strip())
         if role not in {'user', 'assistant'}:
             continue
-        if not isinstance(content, str) or not content.strip():
-            continue
-        messages.append({'role': role, 'content': content})
+        if role == 'user':
+            raw_images = turn.get('images', [])
+            images: list[str] = []
+            if isinstance(raw_images, list):
+                for item in raw_images[:3]:
+                    if not isinstance(item, str):
+                        continue
+                    data_url = normalize_image_to_data_url(item)
+                    if data_url:
+                        images.append(data_url)
+            if has_valid_text or images:
+                messages.append({'role': role, 'content': build_user_content(content if has_valid_text else '', images)})
+        else:
+            if has_valid_text:
+                messages.append({'role': role, 'content': content})
 
-    messages.append({'role': 'user', 'content': user_message})
+    normalized_user_images: list[str] = []
+    for item in (user_images or [])[:3]:
+        if not isinstance(item, str):
+            continue
+        data_url = normalize_image_to_data_url(item)
+        if data_url:
+            normalized_user_images.append(data_url)
+    messages.append({'role': 'user', 'content': build_user_content(user_message, normalized_user_images)})
 
     async for text in _stream_chat_completions(messages, model, api_key_override):
         yield text

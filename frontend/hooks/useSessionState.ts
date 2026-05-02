@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { fetchSession } from '@/lib/api';
@@ -90,12 +90,15 @@ export function useSessionState(sessionId: string) {
     queryKey: ['session', sessionId],
     queryFn: () => fetchSession(sessionId),
     enabled: sessionId.length > 0,
+    staleTime: 10_000,
+    placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
   const session = sessionQuery.data ?? null;
-  const loadingSession = sessionQuery.isPending;
+  const loadingSession = sessionQuery.isPending && !session;
+  const switchingSession = sessionQuery.isFetching && !!session && session.sessionId !== sessionId;
   const sessionError = sessionQuery.isError
     ? (sessionQuery.error instanceof Error ? sessionQuery.error.message : '加载失败')
     : '';
@@ -110,11 +113,6 @@ export function useSessionState(sessionId: string) {
       return { ...prev, [pageNumber]: updater(current) };
     });
   }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-    setPages({});
-  }, [sessionId]);
 
   useEffect(() => {
     if (!session) return;
@@ -137,5 +135,6 @@ export function useSessionState(sessionId: string) {
     pages,
     pagesRef,
     updatePage,
+    switchingSession,
   };
 }

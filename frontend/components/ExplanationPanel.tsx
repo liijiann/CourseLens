@@ -59,10 +59,10 @@ export default function ExplanationPanel({
   const hasBlocks = blocks.length > 0;
   const glass = bubbleStyle === 'glass';
   const blockBubble = glass
-    ? 'border border-black/5 bg-white/60 text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-white/8 dark:bg-white/5 dark:text-[var(--dark-text)]'
+    ? 'border border-black/5 bg-white/60 text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.08)] dark:border-white/8 dark:bg-white/5 dark:text-[var(--dark-text)]'
     : 'bg-gray-100 text-slate-800 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-text)]';
   const loadingBubble = glass
-    ? 'border border-black/5 bg-white/60 text-slate-600 shadow-[0_1px_2px_rgba(15,23,42,0.08)] backdrop-blur-md dark:border-white/8 dark:bg-white/5 dark:text-[var(--dark-muted)]'
+    ? 'border border-black/5 bg-white/60 text-slate-600 shadow-[0_1px_2px_rgba(15,23,42,0.08)] dark:border-white/8 dark:bg-white/5 dark:text-[var(--dark-muted)]'
     : 'bg-slate-50 text-slate-600 dark:bg-[var(--dark-surface-elev)] dark:text-[var(--dark-muted)]';
   const textClass = fontSize === 'small'
     ? 'text-xs leading-6'

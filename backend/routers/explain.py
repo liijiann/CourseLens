@@ -1,9 +1,11 @@
-import asyncio
+﻿import asyncio
 from collections.abc import AsyncGenerator
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
-from services import ai_service, session_service
+from auth_deps import get_current_user
+from db import UserRecord
+from services import ai_service, render_service, session_service
 from utils.sse import sse, sse_response
 
 router = APIRouter(prefix='/api', tags=['explain'])
@@ -16,31 +18,54 @@ async def explain_page(
     force: bool = Query(default=False),
     with_context: bool = Query(default=False),
     x_api_key: str | None = Header(default=None),
+    current_user: UserRecord = Depends(get_current_user),
 ):
-    try:
-        meta = session_service.get_session_meta(session_id)
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail='Session 不存在') from exc
+    user_id = str(current_user['id'])
 
     try:
-        page = session_service.get_page(session_id, page_number)
+        meta = session_service.get_session_meta(user_id, session_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail='会话不存在') from exc
+
+    try:
+        page = session_service.get_page(user_id, session_id, page_number)
     except IndexError as exc:
         raise HTTPException(status_code=404, detail='页码不存在') from exc
 
-    # 非强制模式：有缓存直接返回
     if not force and page['status'] == 'done' and page.get('explanation'):
         async def replay_cached() -> AsyncGenerator[str, None]:
             yield sse({'type': 'chunk', 'content': page['explanation']})
             yield sse({'type': 'done', 'content': ''})
+
         return sse_response(replay_cached())
 
-    # 强制模式：重置状态
     if force:
         def reset_page(page_entry: dict) -> None:
             page_entry['status'] = 'pending'
             page_entry['explanation'] = ''
             page_entry['lastError'] = ''
-        session_service.mutate_page(session_id, page_number, reset_page)
+
+        session_service.mutate_page(user_id, session_id, page_number, reset_page)
+
+    try:
+        await render_service.ensure_page_rendered(user_id, session_id, page_number)
+        if with_context and page_number > 1:
+            try:
+                await render_service.ensure_page_rendered(user_id, session_id, page_number - 1)
+            except (FileNotFoundError, IndexError):
+                pass
+        await render_service.schedule_prefetch(
+            user_id=user_id,
+            session_id=session_id,
+            total_pages=meta['totalPages'],
+            start_page=1,
+        )
+    except render_service.StorageQuotaExceeded as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail='会话资源不存在') from exc
+    except IndexError as exc:
+        raise HTTPException(status_code=404, detail='页码不存在') from exc
 
     def mark_streaming(page_entry: dict) -> tuple[str, str]:
         if page_entry['status'] == 'streaming':
@@ -54,26 +79,27 @@ async def explain_page(
         page_entry['lastError'] = ''
         return 'stream', ''
 
-    action, cached_text = session_service.mutate_page(session_id, page_number, mark_streaming)
+    action, cached_text = session_service.mutate_page(user_id, session_id, page_number, mark_streaming)
 
     if action == 'busy':
         async def busy_stream() -> AsyncGenerator[str, None]:
             yield sse({'type': 'error', 'content': '当前页正在生成中，请稍后重试'})
+
         return sse_response(busy_stream())
 
     if action == 'cached':
         async def replay_after_race() -> AsyncGenerator[str, None]:
             yield sse({'type': 'chunk', 'content': cached_text})
             yield sse({'type': 'done', 'content': ''})
+
         return sse_response(replay_after_race())
 
-    image_path = session_service.get_page_image_path(session_id, page_number)
+    image_path = session_service.get_page_image_path(user_id, session_id, page_number)
 
-    # 取上一页图片作为上下文
     prev_image_path = None
     if with_context and page_number > 1:
         try:
-            prev_image_path = session_service.get_page_image_path(session_id, page_number - 1)
+            prev_image_path = session_service.get_page_image_path(user_id, session_id, page_number - 1)
         except (IndexError, KeyError, FileNotFoundError):
             pass
 
@@ -99,20 +125,22 @@ async def explain_page(
                 page_entry['explanation'] = full_text
                 page_entry['lastError'] = ''
 
-            session_service.mutate_page(session_id, page_number, mark_done)
+            session_service.mutate_page(user_id, session_id, page_number, mark_done)
             yield sse({'type': 'done', 'content': ''})
         except asyncio.CancelledError:
             def mark_pending(page_entry: dict) -> None:
                 if page_entry.get('status') == 'streaming':
                     page_entry['status'] = 'pending'
                     page_entry['lastError'] = ''
-            session_service.mutate_page(session_id, page_number, mark_pending)
+
+            session_service.mutate_page(user_id, session_id, page_number, mark_pending)
             raise
         except Exception as exc:
             def mark_failed(page_entry: dict) -> None:
                 page_entry['status'] = 'failed'
                 page_entry['lastError'] = str(exc)
-            session_service.mutate_page(session_id, page_number, mark_failed)
+
+            session_service.mutate_page(user_id, session_id, page_number, mark_failed)
             yield sse({'type': 'error', 'content': str(exc)})
 
     return sse_response(generate_stream())

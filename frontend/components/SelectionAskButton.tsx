@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { MessageCircle, X } from 'lucide-react';
 
@@ -179,7 +179,7 @@ export default function SelectionAskButton({
 
   const openDialog = useCallback(() => {
     const text = selectedTextRef.current;
-    setInput(text ? `我没理解这段话："${text}"` : '');
+    setInput(text ? `我没理解这段话：“${text}”` : '');
     setLocalChat([]);
     setIsWaitingReply(false);
     chatBaseRef.current = chat.length;
@@ -195,7 +195,7 @@ export default function SelectionAskButton({
   }, [btnPos, chat.length]);
 
   const closeDialog = useCallback(() => {
-    // problem 4: abort in-flight request on close
+    // abort in-flight request on close
     if (askSending) onAbort();
     setDialogOpen(false);
     setInput('');
@@ -242,7 +242,7 @@ export default function SelectionAskButton({
     };
   }, []);
 
-  // problem 2: only show draftAnswer when we're waiting for a reply from THIS session
+  // only show draftAnswer when we're waiting for a reply from THIS session
   const visibleDraft = isWaitingReply ? draftAnswer : '';
 
   const portal = (
@@ -300,7 +300,7 @@ export default function SelectionAskButton({
             <div
               ref={chatScrollRef}
               onScroll={handleChatScroll}
-              className="scrollbar-thin max-h-56 overflow-y-auto px-3 py-2 space-y-2"
+              className="scrollbar-thin max-h-56 overflow-y-auto space-y-2 px-3 py-2"
             >
               {localChat.map((turn, i) => {
                 const isUser = turn.role === 'user';
@@ -330,13 +330,13 @@ export default function SelectionAskButton({
 
           {/* Input */}
           <div className="px-3 pb-3 pt-2">
-            <div className="relative rounded-2xl border border-black/10 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.06)] focus-within:border-black/20 transition-colors dark:border-slate-300 dark:bg-white">
+            <div className="relative rounded-2xl border border-black/10 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.06)] transition-colors focus-within:border-black/20 dark:border-slate-300 dark:bg-white">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="输入追问内容..."
                 rows={inputFocused ? 2 : 1}
-                className="no-scrollbar block w-full resize-none overflow-y-auto bg-transparent pl-3.5 pr-12 pb-9 pt-2.5 text-sm text-black outline-none placeholder:text-slate-500 transition-all duration-200 dark:text-black dark:placeholder:text-slate-500"
+                className="no-scrollbar block w-full resize-none overflow-y-auto bg-transparent pb-9 pl-3.5 pr-12 pt-2.5 text-sm text-black outline-none placeholder:text-slate-500 transition-all duration-200 dark:text-black dark:placeholder:text-slate-500"
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
                 onKeyDown={(e) => {
@@ -355,7 +355,7 @@ export default function SelectionAskButton({
                   type="button"
                   disabled={askSending || !input.trim() || !canAsk}
                   onClick={send}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-[var(--dark-button-bg)] dark:hover:bg-[var(--dark-button-hover)] dark:disabled:bg-[var(--dark-disabled)]"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-[var(--dark-button-bg)] dark:disabled:bg-[var(--dark-disabled)] dark:hover:bg-[var(--dark-button-hover)]"
                   title="发送"
                 >
                   {askSending

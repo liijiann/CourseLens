@@ -29,6 +29,7 @@ export default function ReminderCat() {
   const [hearts, setHearts] = useState<Heart[]>([]);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartsCleanupTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const dismiss = useCallback(() => {
     if (fadeTimer.current) return; // already dismissing
@@ -38,16 +39,22 @@ export default function ReminderCat() {
       angle: (360 / 6) * i + Math.random() * 20 - 10,
     }));
     setHearts((prev) => [...prev, ...newHearts]);
-    setTimeout(() => {
+    const cleanupTimer = setTimeout(() => {
       setHearts((prev) => prev.filter((h) => !newHearts.find((n) => n.id === h.id)));
+      heartsCleanupTimers.current = heartsCleanupTimers.current.filter((timer) => timer !== cleanupTimer);
     }, 700);
+    heartsCleanupTimers.current.push(cleanupTimer);
 
     startFade();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startFade = useCallback(() => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
     setFading(true);
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
     fadeTimer.current = setTimeout(() => {
       setVisible(false);
       setFading(false);
@@ -82,6 +89,18 @@ export default function ReminderCat() {
     return () => {
       clearTimeout(firstTimer);
       if (interval) clearInterval(interval);
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+        hideTimer.current = null;
+      }
+      if (fadeTimer.current) {
+        clearTimeout(fadeTimer.current);
+        fadeTimer.current = null;
+      }
+      for (const timer of heartsCleanupTimers.current) {
+        clearTimeout(timer);
+      }
+      heartsCleanupTimers.current = [];
     };
   }, [show]);
 

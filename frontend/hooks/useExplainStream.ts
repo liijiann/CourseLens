@@ -188,10 +188,11 @@ export function useExplainStream({
 
     abortExplainOutsideWindow(currentPage, session.totalPages);
 
+    let prefetchTimer: number | null = null;
     const timer = window.setTimeout(() => {
       startExplain(currentPage);
 
-      window.setTimeout(() => {
+      prefetchTimer = window.setTimeout(() => {
         startExplain(currentPage - 1);
         startExplain(currentPage + 1);
       }, PREFETCH_DELAY_MS);
@@ -199,6 +200,9 @@ export function useExplainStream({
 
     return () => {
       window.clearTimeout(timer);
+      if (prefetchTimer !== null) {
+        window.clearTimeout(prefetchTimer);
+      }
     };
   }, [abortExplainOutsideWindow, currentPage, session, startExplain]);
 
