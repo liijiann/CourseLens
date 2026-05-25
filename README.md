@@ -9,7 +9,6 @@
 - 选中文字直接追问
 - 邻页解读 + Qwen低token消耗，极高性价比
 - 干净克制的交互体验，自学与伴学的助手
-- 休息提醒猫
 
 ## 技术栈
 
@@ -17,7 +16,7 @@
 - 后端：FastAPI + PyMuPDF + DashScope
 
 ## （方式一）
-## Docker 启动（recommend）
+## Docker 启动
 
 **1. 安装 Docker Desktop ，启动Docker Desktop**  
 
